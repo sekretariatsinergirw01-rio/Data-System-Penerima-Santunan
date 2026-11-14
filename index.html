@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pengajuan Santunan Jumat Mubarak - Yayasan Amsakah RW 01</title>
+<title>Pengajuan & Master Santunan Jumat Mubarak - Yayasan Amsakah RW 01</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
@@ -19,18 +19,18 @@
   }
 </style>
 </head>
-<body class="bg-slate-50 text-slate-800" x-data="appData()" x-init="initApp()">
+<body class="bg-slate-50 text-slate-800 transition-transform duration-200 origin-top" :style="'transform: scale(' + zoomLevel + ');'" x-data="appData()" x-init="initApp()">
 
 <!-- LOGIN MODAL -->
 <div x-show="!session" x-cloak class="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
   <form @submit.prevent="login()" class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm space-y-4 border border-slate-100">
     <div class="text-center space-y-1">
-      <div class="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl mx-auto flex items-center justify-center font-bold text-xl mb-2">YA</div>
+      <div class="w-20 h-12 bg-emerald-100 text-emerald-700 rounded-2xl mx-auto flex items-center justify-center font-bold text-xl mb-2">RW.01</div>
       <h2 class="text-lg font-bold text-slate-900">Login Sistem Pengurus</h2>
       <p class="text-xs text-slate-500">Yayasan Amsakah - RW.01</p>
     </div>
     <div class="space-y-3">
-      <input type="email" x-model="email" required placeholder="Email (Pengurus RW / Ketua RT)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
+      <input type="email" x-model="email" required placeholder="Email Pengurus / Ketua RT" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
       <input type="password" x-model="password" required placeholder="Password" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
       <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-emerald-600/20">Masuk Sistem</button>
     </div>
@@ -45,40 +45,55 @@
         <span class="px-2 py-0.5 bg-emerald-800 text-emerald-200 text-[10px] font-bold rounded" x-text="userProfile.role === 'admin' ? 'PENGURUS RW / ADMIN' : 'KETUA ' + userProfile.rt"></span>
         <span class="text-xs text-emerald-100" x-text="userProfile.nama"></span>
       </div>
-      <h1 class="text-xl font-bold tracking-tight mt-0.5">Pengajuan & Pendataan Santunan Jumat Mubarak</h1>
+      <h1 class="text-xl font-bold tracking-tight mt-0.5">Pengajuan & Data Master Santunan Jumat Mubarak</h1>
     </div>
-    <div class="flex flex-wrap gap-2 text-xs font-semibold">
-      <button @click="openAddModal()" class="px-3.5 py-2 bg-white text-emerald-700 hover:bg-emerald-50 rounded-xl shadow-sm transition flex items-center gap-1.5 font-bold">
-        <span>+ Buat Pengajuan Baru</span>
+    <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
+      <!-- ZOOM CONTROLS -->
+      <div class="flex items-center bg-emerald-800 rounded-xl p-1 gap-1 border border-emerald-600">
+        <button @click="zoomOut()" class="px-2 py-1 hover:bg-emerald-700 rounded-lg text-white font-bold" title="Zoom Out">🔍-</button>
+        <span class="px-1 text-[11px] text-emerald-200" x-text="Math.round(zoomLevel * 100) + '%'"></span>
+        <button @click="zoomIn()" class="px-2 py-1 hover:bg-emerald-700 rounded-lg text-white font-bold" title="Zoom In">🔍+</button>
+      </div>
+
+      <button @click="openAddModal()" class="px-3 py-2 bg-white text-emerald-700 hover:bg-emerald-50 rounded-xl shadow-sm transition flex items-center gap-1 font-bold">
+        <span>+ Buat Pengajuan</span>
       </button>
 
-      <!-- TOMBOL IMPORT EXCEL HANYA MUNCUL DI TAMPILAN PENGURUS RW / ADMIN -->
-      <label x-show="userProfile.role === 'admin'" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer" title="Impor Data Massal dari Excel">
-        <span>📂 Unggah / Import Excel</span>
+      <label x-show="userProfile.role === 'admin'" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition flex items-center gap-1 cursor-pointer">
+        <span>📂 Import Excel</span>
         <input type="file" accept=".xlsx, .xls, .csv" @change="handleFileUpload($event)" class="hidden">
       </label>
 
-      <button @click="openDownloadModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition flex items-center gap-1.5">
-        <span>📥 Unduh Excel / Rekap</span>
+      <button @click="openDownloadModal()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition">
+        <span>📥 Unduh</span>
       </button>
 
-      <!-- TOMBOL RESET DATA KHUSUS PENGURUS RW / ADMIN -->
-      <button x-show="userProfile.role === 'admin'" @click="resetAllData()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-sm transition" title="Hapus seluruh data">
-        ⚠️ Reset Data
+      <button x-show="userProfile.role === 'admin'" @click="resetAllData()" class="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-sm transition">
+        ⚠️ Reset
       </button>
 
-      <button @click="logout()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-sm transition">Keluar</button>
+      <button @click="logout()" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-sm transition">Keluar</button>
     </div>
   </div>
 </header>
 
 <main class="max-w-7xl mx-auto px-4 py-6 space-y-6 no-print">
 
+  <!-- TAB NAVIGASI (PENGUATAN PEMISAHAN ALUR) -->
+  <div class="flex border-b border-slate-200 gap-4">
+    <button @click="activeTab = 'pengajuan'" class="pb-3 px-2 font-bold text-sm border-b-2 transition" :class="activeTab === 'pengajuan' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'">
+      📥 Data Pengajuan RT (<span x-text="pengajuanList.length"></span>)
+    </button>
+    <button @click="activeTab = 'master'" class="pb-3 px-2 font-bold text-sm border-b-2 transition" :class="activeTab === 'master' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'">
+      ⭐ Data Master Penerima Aktif (<span x-text="masterList.length"></span>)
+    </button>
+  </div>
+
   <!-- STATISTIK -->
   <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
     <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
-      <p class="text-xs font-medium text-slate-500">Total Pengajuan</p>
-      <p class="text-2xl font-bold text-slate-900 mt-1" x-text="stats.total"></p>
+      <p class="text-xs font-medium text-slate-500" x-text="activeTab === 'pengajuan' ? 'Total Pengajuan Masuk' : 'Total Data Master'"></p>
+      <p class="text-2xl font-bold text-slate-900 mt-1" x-text="activeTab === 'pengajuan' ? pengajuanList.length : masterList.length"></p>
     </div>
     <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
       <p class="text-xs font-medium text-slate-500">Disetujui / Diterima</p>
@@ -99,8 +114,7 @@
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
       <input type="text" x-model.debounce.300ms="searchQuery" placeholder="Cari nama, NIK, alasan..." class="col-span-2 md:col-span-1 px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600">
       
-      <!-- Filter RT dikunci otomatis jika login sebagai Ketua RT -->
-      <select x-model="filterRT" :disabled="userProfile.role === 'rt'" class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600 disabled:bg-slate-100 disabled:text-slate-500">
+      <select x-model="filterRT" :disabled="userProfile.role === 'rt'" class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600 disabled:bg-slate-100">
         <option value="">Semua Wilayah</option>
         <template x-for="rt in rtList" :key="rt"><option :value="rt" x-text="rt"></option></template>
       </select>
@@ -118,10 +132,10 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
-      <div>Menampilkan <strong class="text-slate-800" x-text="filteredRecipients.length"></strong> dari <strong class="text-slate-800" x-text="recipients.length"></strong> data <span x-show="loading">(memuat...)</span></div>
+      <div>Menampilkan <strong class="text-slate-800" x-text="filteredRecipients.length"></strong> data <span x-show="loading">(memuat...)</span></div>
       <div class="flex items-center space-x-2" x-show="selectedIds.length > 0">
         <span class="font-semibold text-emerald-700" x-text="selectedIds.length + ' terpilih'"></span>
-        <button @click="batchSetStatus(true)" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition">Tandai Disetujui</button>
+        <button x-show="activeTab === 'pengajuan'" @click="batchMoveToMaster()" class="px-2.5 py-1 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition">Pindahkan ke Master</button>
         <button @click="batchDelete()" class="px-2.5 py-1 bg-rose-600 text-white rounded-lg font-medium hover:bg-rose-700 transition">Hapus Terpilih</button>
       </div>
     </div>
@@ -135,12 +149,12 @@
           <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase font-semibold">
             <th class="p-3.5 w-10 text-center"><input type="checkbox" @change="toggleSelectAll($event)" :checked="isAllSelected" class="rounded border-slate-300 text-emerald-600"></th>
             <th class="p-3.5 w-12 text-center">No</th>
-            <th class="p-3.5">Calon Penerima (NIK & Nama)</th>
+            <th class="p-3.5">Warga (Foto, NIK & Nama)</th>
             <th class="p-3.5">Wilayah</th>
             <th class="p-3.5">Kategori</th>
             <th class="p-3.5">Penghasilan</th>
             <th class="p-3.5">Status</th>
-            <th class="p-3.5 text-center">Aksi & Cetak Formulir</th>
+            <th class="p-3.5 text-center">Aksi & Formulir</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 text-slate-700">
@@ -149,8 +163,16 @@
               <td class="p-3.5 text-center"><input type="checkbox" :value="item.id" x-model.number="selectedIds" class="rounded border-slate-300 text-emerald-600"></td>
               <td class="p-3.5 font-mono text-xs text-slate-400 text-center" x-text="(currentPage - 1) * pageSize + index + 1"></td>
               <td class="p-3.5">
-                <div class="font-semibold text-slate-900" x-text="item.nama"></div>
-                <div class="text-xs text-slate-500 font-mono" x-text="'NIK: ' + (item.nik || '-')"></div>
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center font-bold text-slate-500 text-xs">
+                    <img x-show="item.foto" :src="item.foto" class="w-full h-full object-cover">
+                    <span x-show="!item.foto" x-text="(item.nama || 'W').charAt(0)"></span>
+                  </div>
+                  <div>
+                    <div class="font-semibold text-slate-900" x-text="item.nama"></div>
+                    <div class="text-xs text-slate-500 font-mono" x-text="'NIK: ' + (item.nik || '-')"></div>
+                  </div>
+                </div>
               </td>
               <td class="p-3.5"><span class="px-2.5 py-1 rounded-lg text-xs bg-slate-100 font-semibold text-slate-700" x-text="item.rt"></span></td>
               <td class="p-3.5"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800" x-text="item.kategori"></span></td>
@@ -164,15 +186,16 @@
               <td class="p-3.5 text-center whitespace-nowrap text-xs space-x-1">
                 <button @click="openDetailModal(item)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium">Detail</button>
                 <button @click="openEditModal(item)" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-medium">Edit</button>
-                <button @click="printOfficialForm(item)" class="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-sm">📄 Cetak Form PDF</button>
+                <button @click="printOfficialForm(item)" class="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-sm">📄 Cetak Form</button>
+                <button x-show="activeTab === 'pengajuan'" @click="moveToMaster(item)" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-sm">⭐ Setujui/Master</button>
                 <button @click="deleteItem(item.id)" class="px-2.5 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-medium">Hapus</button>
               </td>
             </tr>
           </template>
           <template x-if="filteredRecipients.length === 0">
             <tr><td colspan="8" class="p-12 text-center text-slate-400">
-              <p class="font-medium text-slate-600 text-base">Belum ada data pengajuan.</p>
-              <p class="text-xs text-slate-400 mt-1">Klik tombol <strong>"+ Buat Pengajuan Baru"</strong> atau unggah via Excel (khusus Pengurus RW).</p>
+              <p class="font-medium text-slate-600 text-base">Tidak ada data ditemukan.</p>
+              <p class="text-xs text-slate-400 mt-1">Gunakan tombol "+ Buat Pengajuan" untuk entri data baru.</p>
             </td></tr>
           </template>
         </tbody>
@@ -190,50 +213,63 @@
   </section>
 </main>
 
-<!-- MODAL FORMULIR PENGAJUAN (SESUAI DOKUMEN RESMI) -->
+<!-- MODAL FORMULIR & PROFIL WARGA -->
 <div x-show="showModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto no-print p-4 flex items-center justify-center">
   <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="showModal = false"></div>
   <div class="relative bg-white w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-2xl border border-slate-100 space-y-6">
     <div class="flex items-center justify-between border-b border-slate-200 pb-3">
       <div>
-        <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">FORMULIR RESMI YAYASAN AMSAKAH</span>
-        <h3 class="text-lg font-bold text-slate-900 mt-0.5" x-text="isEdit ? 'Edit Formulir Pengajuan' : 'Formulir Pengajuan Calon Penerima Bantuan Jumat Mubarak'"></h3>
+        <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">FORMULIR & PROFIL WARGA</span>
+        <h3 class="text-lg font-bold text-slate-900 mt-0.5" x-text="isEdit ? 'Edit Data Warga & Pengajuan' : 'Formulir Pengajuan Baru'"></h3>
       </div>
       <button @click="showModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
     </div>
 
     <form @submit.prevent="saveForm()" class="space-y-6 text-sm">
       
+      <!-- FOTO PROFIL & DOKUMEN PENDUKUNG -->
+      <div class="p-4 bg-slate-50 rounded-xl border space-y-3">
+        <h4 class="font-bold text-emerald-900 text-xs uppercase tracking-wider">Foto Profil & Dokumen Pendukung (KTP/KK)</h4>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div class="flex items-center gap-3">
+            <div class="w-16 h-16 rounded-full overflow-hidden bg-slate-200 shrink-0 border">
+              <img x-show="formData.foto" :src="formData.foto" class="w-full h-full object-cover">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Foto Warga</label>
+              <input type="file" accept="image/*" @change="handlePhotoUpload($event)" class="text-xs">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Upload Dokumen KTP/KK (Multiple)</label>
+            <input type="file" multiple accept="image/*,application/pdf" @change="handleDocUpload($event)" class="text-xs">
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 pt-2">
+          <template x-for="(doc, idx) in formData.dokumen" :key="idx">
+            <div class="flex items-center justify-between p-2 rounded-lg bg-white border text-xs gap-2">
+              <span class="truncate font-medium text-slate-700 max-w-[150px]" x-text="doc.nama"></span>
+              <button type="button" @click="removeDoc(idx)" class="text-rose-600 font-bold">×</button>
+            </div>
+          </template>
+        </div>
+      </div>
+
       <!-- A. IDENTITAS WILAYAH -->
       <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
         <h4 class="font-bold text-emerald-900 text-xs uppercase tracking-wider">A. Identitas Wilayah</h4>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label class="block text-xs font-semibold mb-1">Kelurahan</label>
-            <input type="text" x-model="formData.kelurahan" required class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">RW</label>
-            <input type="text" x-model="formData.rw" required class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-          </div>
+          <div><label class="block text-xs font-semibold mb-1">Kelurahan</label><input type="text" x-model="formData.kelurahan" required class="w-full px-3 py-2 rounded-lg border bg-white"></div>
+          <div><label class="block text-xs font-semibold mb-1">RW</label><input type="text" x-model="formData.rw" required class="w-full px-3 py-2 rounded-lg border bg-white"></div>
           <div>
             <label class="block text-xs font-semibold mb-1">RT</label>
-            <select x-model="formData.rt" :disabled="userProfile.role === 'rt'" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white disabled:bg-slate-100">
+            <select x-model="formData.rt" :disabled="userProfile.role === 'rt'" class="w-full px-3 py-2 rounded-lg border bg-white disabled:bg-slate-100">
               <template x-for="rt in rtList" :key="rt"><option :value="rt" x-text="rt"></option></template>
             </select>
           </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">Nama Ketua RT</label>
-            <input type="text" x-model="formData.nama_ketua_rt" placeholder="Nama Ketua RT" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">Nama Ketua RW</label>
-            <input type="text" x-model="formData.nama_ketua_rw" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">Tanggal Pengajuan</label>
-            <input type="text" x-model="formData.tanggal_pengajuan" placeholder="Contoh: 20 Agustus 2026" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-          </div>
+          <div><label class="block text-xs font-semibold mb-1">Nama Ketua RT</label><input type="text" x-model="formData.nama_ketua_rt" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
+          <div><label class="block text-xs font-semibold mb-1">Nama Ketua RW</label><input type="text" x-model="formData.nama_ketua_rw" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
+          <div><label class="block text-xs font-semibold mb-1">Tanggal Pengajuan</label><input type="text" x-model="formData.tanggal_pengajuan" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
         </div>
       </div>
 
@@ -241,66 +277,37 @@
       <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
         <h4 class="font-bold text-emerald-900 text-xs uppercase tracking-wider">B. Data Calon Penerima</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div class="sm:col-span-2">
-            <label class="block text-xs font-semibold mb-1">1. Nama Lengkap</label>
-            <input type="text" x-model="formData.nama" required placeholder="Nama sesuai KTP" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">2. NIK</label>
-            <input type="text" x-model="formData.nik" placeholder="Nomor Induk Kependudukan" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">3. Tempat, Tanggal Lahir</label>
-            <input type="text" x-model="formData.tempat_tanggal_lahir" placeholder="Contoh: Jakarta, 12-05-1955" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">4. Usia (Tahun)</label>
-            <input type="text" x-model="formData.usia" placeholder="Contoh: 70" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-          </div>
+          <div class="sm:col-span-2"><label class="block text-xs font-semibold mb-1">1. Nama Lengkap</label><input type="text" x-model="formData.nama" required class="w-full px-3 py-2 rounded-lg border bg-white"></div>
+          <div><label class="block text-xs font-semibold mb-1">2. NIK</label><input type="text" x-model="formData.nik" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
+          <div><label class="block text-xs font-semibold mb-1">3. Tempat, Tanggal Lahir</label><input type="text" x-model="formData.tempat_tanggal_lahir" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
+          <div><label class="block text-xs font-semibold mb-1">4. Usia (Tahun)</label><input type="text" x-model="formData.usia" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
           <div>
             <label class="block text-xs font-semibold mb-1">5. Jenis Kelamin</label>
-            <select x-model="formData.jenis_kelamin" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-              <option value="Laki-laki">Laki-laki</option>
-              <option value="Perempuan">Perempuan</option>
-            </select>
+            <select x-model="formData.jenis_kelamin" class="w-full px-3 py-2 rounded-lg border bg-white"><option value="Laki-laki">Laki-laki</option><option value="Perempuan">Perempuan</option></select>
           </div>
-          <div class="sm:col-span-2">
-            <label class="block text-xs font-semibold mb-1">6. Alamat Lengkap</label>
-            <textarea x-model="formData.alamat_lengkap" rows="2" placeholder="Jalan, No. Rumah, RT/RW" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white"></textarea>
-          </div>
+          <div class="sm:col-span-2"><label class="block text-xs font-semibold mb-1">6. Alamat Lengkap</label><textarea x-model="formData.alamat_lengkap" rows="2" class="w-full px-3 py-2 rounded-lg border bg-white"></textarea></div>
           <div>
-            <label class="block text-xs font-semibold mb-1">7. Kategori Calon Penerima</label>
-            <select x-model="formData.kategori" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-              <option value="LANSIA">Lansia</option>
-              <option value="JANDA">Janda</option>
-              <option value="Lain-lain">Lain-lain</option>
-            </select>
+            <label class="block text-xs font-semibold mb-1">7. Kategori</label>
+            <select x-model="formData.kategori" class="w-full px-3 py-2 rounded-lg border bg-white"><option value="LANSIA">Lansia</option><option value="JANDA">Janda</option><option value="Lain-lain">Lain-lain</option></select>
           </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">8. Jika Lain-lain (Jelaskan)</label>
-            <input type="text" x-model="formData.kategori_lain_jelaskan" placeholder="Penjelasan kategori..." class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1">9. Pekerjaan</label>
-            <input type="text" x-model="formData.pekerjaan" placeholder="Pekerjaan saat ini" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-          </div>
+          <div><label class="block text-xs font-semibold mb-1">8. Jika Lain-lain (Jelaskan)</label><input type="text" x-model="formData.kategori_lain_jelaskan" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
+          <div><label class="block text-xs font-semibold mb-1">9. Pekerjaan</label><input type="text" x-model="formData.pekerjaan" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
           <div>
             <label class="block text-xs font-semibold mb-1">10. Kondisi Penghasilan</label>
-            <select x-model="formData.kondisi_penghasilan" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
+            <select x-model="formData.kondisi_penghasilan" class="w-full px-3 py-2 rounded-lg border bg-white">
               <option value="Tidak memiliki penghasilan tetap">Tidak memiliki penghasilan tetap</option>
               <option value="Penghasilan rendah/tidak mencukupi">Penghasilan rendah/tidak mencukupi</option>
               <option value="Memiliki penghasilan tetap">Memiliki penghasilan tetap</option>
             </select>
           </div>
-          <div class="sm:col-span-2">
-            <label class="block text-xs font-semibold mb-1">11. Nomor HP (jika ada)</label>
-            <input type="text" x-model="formData.nomor_hp" placeholder="08xxxxxxxxxx" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
+          <div class="sm:col-span-2"><label class="block text-xs font-semibold mb-1">11. Nomor HP</label><input type="text" x-model="formData.nomor_hp" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Jadwal Penyaluran</label>
+            <select x-model="formData.jadwal" class="w-full px-3 py-2 rounded-lg border bg-white"><option>Jumat 1</option><option>Jumat 2</option><option>Jumat 3</option><option>Jumat 4</option></select>
           </div>
-          <div class="sm:col-span-2">
-            <label class="block text-xs font-semibold mb-1">Jadwal Penyaluran (Jumat Ke-)</label>
-            <select x-model="formData.jadwal" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white">
-              <option>Jumat 1</option><option>Jumat 2</option><option>Jumat 3</option><option>Jumat 4</option>
-            </select>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Status Pengajuan / Master</label>
+            <select x-model="formData.status" class="w-full px-3 py-2 rounded-lg border bg-white"><option>Belum Diterima</option><option>Sudah Diterima</option></select>
           </div>
         </div>
       </div>
@@ -308,39 +315,73 @@
       <!-- C. ALASAN PENGAJUAN -->
       <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
         <h4 class="font-bold text-emerald-900 text-xs uppercase tracking-wider">C. Alasan Pengajuan</h4>
-        <div>
-          <label class="block text-xs font-semibold mb-1">Jelaskan kondisi calon penerima dan alasan pengajuan Bantuan Jumat Mubarak:</label>
-          <textarea x-model="formData.alasan_pengajuan" rows="3" placeholder="Tuliskan alasan dan kondisi objektif calon penerima..." class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white"></textarea>
-        </div>
+        <textarea x-model="formData.alasan_pengajuan" rows="3" class="w-full px-3 py-2 rounded-lg border bg-white" placeholder="Tuliskan alasan..."></textarea>
       </div>
 
-      <!-- TOMBOL AKSI -->
       <div class="flex justify-end gap-3 pt-4 border-t">
         <button type="button" @click="showModal = false" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Batal</button>
-        <button type="submit" :disabled="saving" class="px-6 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md" x-text="saving ? 'Menyimpan...' : 'Simpan Pengajuan'"></button>
+        <button type="submit" :disabled="saving" class="px-6 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md" x-text="saving ? 'Menyimpan...' : 'Simpan Data'"></button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- MODAL DOWNLOAD / REKAP EXCEL -->
+<!-- MODAL DETAIL WARGA & DOKUMEN -->
+<div x-show="showDetailModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto no-print p-4 flex items-center justify-center">
+  <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="showDetailModal = false"></div>
+  <div class="relative bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-2xl border space-y-4" x-show="detailItem">
+    <template x-if="detailItem">
+      <div class="space-y-4 text-sm">
+        <div class="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border">
+          <div class="w-20 h-20 rounded-2xl overflow-hidden bg-slate-200 shrink-0 border">
+            <img x-show="detailItem.foto" :src="detailItem.foto" class="w-full h-full object-cover">
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-slate-900" x-text="detailItem.nama"></h2>
+            <p class="text-xs text-slate-500 mt-0.5"><span x-text="detailItem.rt"></span> | NIK: <span x-text="detailItem.nik || '-'"></span> | <strong class="text-emerald-700" x-text="detailItem.status"></strong></p>
+            <p class="text-xs text-slate-500 mt-1" x-text="detailItem.alasan_pengajuan ? 'Alasan: ' + detailItem.alasan_pengajuan : ''"></p>
+          </div>
+        </div>
+
+        <h4 class="font-bold text-slate-800">Dokumen Pendukung (KTP / KK)</h4>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <template x-for="(doc, idx) in detailItem.dokumen" :key="idx">
+            <div class="p-3 rounded-xl border bg-white space-y-2">
+              <p class="text-xs font-semibold truncate text-slate-700" x-text="doc.nama"></p>
+              <img x-show="doc.url && /\.(jpe?g|png|webp|gif)$/i.test(doc.path)" :src="doc.url" class="w-full h-32 object-cover rounded-lg border">
+              <a :href="doc.url" target="_blank" rel="noopener" class="text-xs text-emerald-600 hover:underline font-medium inline-block">Buka / Unduh Berkas</a>
+            </div>
+          </template>
+        </div>
+        <p x-show="!detailItem.dokumen || detailItem.dokumen.length === 0" class="p-4 text-center border-2 border-dashed rounded-xl text-slate-400 text-xs">Belum ada dokumen yang diunggah.</p>
+
+        <div class="flex justify-end gap-2 pt-3 border-t">
+          <button @click="showDetailModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-semibold text-slate-700">Tutup</button>
+          <button @click="showDetailModal = false; printOfficialForm(detailItem)" class="px-4 py-2 bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md">Cetak Form PDF</button>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
+
+<!-- MODAL DOWNLOAD -->
 <div x-show="showDownloadModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto no-print p-4 flex items-center justify-center">
   <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="showDownloadModal = false"></div>
-  <div class="relative bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl border border-slate-100 space-y-4">
+  <div class="relative bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl border space-y-4">
     <div class="flex items-center justify-between border-b pb-3">
-      <h3 class="text-lg font-bold text-slate-800">Unduh Rekapitulasi Data</h3>
+      <h3 class="text-lg font-bold text-slate-800">Unduh Rekapitulasi Excel</h3>
       <button @click="showDownloadModal = false" class="text-slate-400 font-bold">×</button>
     </div>
     <div class="space-y-3 text-sm">
       <div>
         <label class="block text-xs font-semibold mb-1">Pilih Wilayah RT</label>
-        <select x-model="downloadRT" :disabled="userProfile.role === 'rt'" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white disabled:bg-slate-100">
+        <select x-model="downloadRT" :disabled="userProfile.role === 'rt'" class="w-full px-3.5 py-2.5 rounded-xl border bg-white disabled:bg-slate-100">
           <option value="SEMUA">🌐 Semua RT (RW 01 Lengkap)</option>
           <template x-for="rt in rtList" :key="rt"><option :value="rt" x-text="'Wilayah ' + rt"></option></template>
         </select>
       </div>
       <button @click="exportToExcel()" class="w-full p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-center transition shadow-md">
-        📊 Unduh File Excel (.xlsx) Lengkap
+        📊 Unduh File Excel (.xlsx)
       </button>
     </div>
     <div class="flex justify-end pt-3 border-t">
@@ -349,158 +390,96 @@
   </div>
 </div>
 
-<!-- TEMPLATE CETAK PDF FORMULIR RESMI (SESUAI DOKUMEN ANDA) -->
+<!-- TEMPLATE CETAK PDF FORMULIR RESMI -->
 <div id="form-print-area">
   <div style="font-family: Arial, sans-serif; padding: 25px; max-width: 800px; margin: 0 auto; color: #000; font-size: 12px; line-height: 1.4;">
-    
-    <!-- KOP FORMULIR -->
     <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-      <h3 style="margin: 0; font-size: 15px; font-weight: bold; letter-spacing: 0.5px;">YAYASAN AMSAKAH</h3>
+      <h3 style="margin: 0; font-size: 15px; font-weight: bold;">YAYASAN AMSAKAH</h3>
       <h2 style="margin: 4px 0; font-size: 16px; font-weight: bold;">FORMULIR PENGAJUAN CALON PENERIMA BANTUAN JUMAT MUBARAK</h2>
       <p style="margin: 0; font-size: 11px;">TAHUN 2026</p>
     </div>
-
-    <!-- A. IDENTITAS WILAYAH -->
     <div style="margin-bottom: 12px;">
-      <div style="font-weight: bold; background-color: #e2e8f0; padding: 4px 8px; margin-bottom: 6px; font-size: 12px;">A. IDENTITAS WILAYAH</div>
+      <div style="font-weight: bold; background-color: #e2e8f0; padding: 4px 8px; margin-bottom: 6px;">A. IDENTITAS WILAYAH</div>
       <table style="width: 100%; border-collapse: collapse;">
-        <tr>
-          <td style="width: 25%; padding: 3px 0;">Kelurahan</td>
-          <td style="width: 2%;">:</td>
-          <td style="width: 73%; padding: 3px 0; border-bottom: 1px dotted #666;" id="p-kelurahan"></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">RW / RT</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;"><span id="p-rw"></span> / <span id="p-rt"></span></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">Nama Ketua RT</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-ketua-rt"></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">Nama Ketua RW</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;">DR. H. ABDUL KADIR ABU, Lc. MA.</td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">Tanggal Pengajuan</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-tanggal"></td>
-        </tr>
+        <tr><td style="width: 25%; padding: 3px 0;">Kelurahan</td><td style="width: 2%;">:</td><td style="width: 73%; padding: 3px 0; border-bottom: 1px dotted #666;" id="p-kelurahan"></td></tr>
+        <tr><td style="padding: 3px 0;">RW / RT</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;"><span id="p-rw"></span> / <span id="p-rt"></span></td></tr>
+        <tr><td style="padding: 3px 0;">Nama Ketua RT</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-ketua-rt"></td></tr>
+        <tr><td style="padding: 3px 0;">Nama Ketua RW</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;">DR. H. ABDUL KADIR ABU, Lc. MA.</td></tr>
+        <tr><td style="padding: 3px 0;">Tanggal Pengajuan</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-tanggal"></td></tr>
       </table>
     </div>
-
-    <!-- B. DATA CALON PENERIMA -->
     <div style="margin-bottom: 12px;">
-      <div style="font-weight: bold; background-color: #e2e8f0; padding: 4px 8px; margin-bottom: 6px; font-size: 12px;">B. DATA CALON PENERIMA</div>
+      <div style="font-weight: bold; background-color: #e2e8f0; padding: 4px 8px; margin-bottom: 6px;">B. DATA CALON PENERIMA</div>
       <table style="width: 100%; border-collapse: collapse;">
-        <tr>
-          <td style="width: 28%; padding: 3px 0;">1. Nama Lengkap</td>
-          <td style="width: 2%;">:</td>
-          <td style="width: 70%; padding: 3px 0; border-bottom: 1px dotted #666; font-weight: bold;" id="p-nama"></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">2. NIK</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-nik"></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">3. Tempat, Tanggal Lahir</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-ttl"></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">4. Usia</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;"><span id="p-usia"></span> tahun</td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">5. Jenis Kelamin</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-jk"></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">6. Alamat Lengkap</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-alamat"></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">7. Kategori Calon Penerima</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-kategori"></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">8. Jika Lain-lain</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-kategori-lain"></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">9. Pekerjaan</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-pekerjaan"></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">10. Kondisi Penghasilan</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-penghasilan"></td>
-        </tr>
-        <tr>
-          <td style="padding: 3px 0;">11. Nomor HP</td>
-          <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-hp"></td>
-        </tr>
+        <tr><td style="width: 28%; padding: 3px 0;">1. Nama Lengkap</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666; font-weight: bold;" id="p-nama"></td></tr>
+        <tr><td style="padding: 3px 0;">2. NIK</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-nik"></td></tr>
+        <tr><td style="padding: 3px 0;">3. Tempat, Tanggal Lahir</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-ttl"></td></tr>
+        <tr><td style="padding: 3px 0;">4. Usia</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;"><span id="p-usia"></span> tahun</td></tr>
+        <tr><td style="padding: 3px 0;">5. Jenis Kelamin</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-jk"></td></tr>
+        <tr><td style="padding: 3px 0;">6. Alamat Lengkap</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-alamat"></td></tr>
+        <tr><td style="padding: 3px 0;">7. Kategori</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-kategori"></td></tr>
+        <tr><td style="padding: 3px 0;">8. Jika Lain-lain</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-kategori-lain"></td></tr>
+        <tr><td style="padding: 3px 0;">9. Pekerjaan</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-pekerjaan"></td></tr>
+        <tr><td style="padding: 3px 0;">10. Penghasilan</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-penghasilan"></td></tr>
+        <tr><td style="padding: 3px 0;">11. Nomor HP</td><td>:</td><td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-hp"></td></tr>
       </table>
     </div>
-
-    <!-- C. ALASAN PENGAJUAN -->
     <div style="margin-bottom: 15px;">
-      <div style="font-weight: bold; background-color: #e2e8f0; padding: 4px 8px; margin-bottom: 6px; font-size: 12px;">C. ALASAN PENGAJUAN</div>
-      <p style="margin: 0 0 4px 0; font-size: 11px; color: #444;">Jelaskan kondisi calon penerima dan alasan pengajuan Bantuan Jumat Mubarak:</p>
+      <div style="font-weight: bold; background-color: #e2e8f0; padding: 4px 8px; margin-bottom: 6px;">C. ALASAN PENGAJUAN</div>
       <div style="border: 1px solid #cbd5e1; padding: 8px; min-height: 50px; border-radius: 4px; background: #fafafa;" id="p-alasan"></div>
     </div>
-
-    <!-- D. PERNYATAAN PEREKOMENDASI -->
     <div style="margin-bottom: 20px;">
-      <div style="font-weight: bold; background-color: #e2e8f0; padding: 4px 8px; margin-bottom: 6px; font-size: 12px;">D. PERNYATAAN PEREKOMENDASI</div>
-      <p style="text-align: justify; margin: 0 0 15px 0; font-size: 11px;">
-        Saya selaku pengusul menyatakan bahwa data calon penerima yang diajukan telah disampaikan sesuai dengan kondisi dan informasi yang diketahui di lingkungan setempat. Saya bersedia membantu proses verifikasi yang dilakukan oleh Yayasan AMSAKAH.
-      </p>
-
-      <!-- TANDA TANGAN -->
+      <div style="font-weight: bold; background-color: #e2e8f0; padding: 4px 8px; margin-bottom: 6px;">D. PERNYATAAN PEREKOMENDASI</div>
+      <p style="text-align: justify; margin: 0 0 15px 0; font-size: 11px;">Saya selaku pengusul menyatakan bahwa data calon penerima yang diajukan telah disampaikan sesuai kondisi di lingkungan setempat.</p>
       <table style="width: 100%; border-collapse: collapse; text-align: center; margin-top: 15px;">
         <tr>
           <td style="width: 50%;">
-            <p style="margin: 0;">Ketua RT <span id="p-sign-rt"></span></p>
-            <br><br><br>
+            <p style="margin: 0;">Ketua RT <span id="p-sign-rt"></span></p><br><br><br>
             <p style="margin: 0; font-weight: bold; text-decoration: underline;" id="p-name-rt">( ............................................ )</p>
           </td>
           <td style="width: 50%;">
             <p style="margin: 0;">Jakarta, <span id="p-print-date"></span></p>
-            <p style="margin: 0; font-weight: bold;">Ketua RW 01</p>
-            <br><br><br>
+            <p style="margin: 0; font-weight: bold;">Ketua RW 01</p><br><br><br>
             <p style="margin: 0; font-weight: bold; text-decoration: underline;">DR. H. ABDUL KADIR ABU, Lc. MA.</p>
           </td>
         </tr>
       </table>
     </div>
-
   </div>
 </div>
 
 <script>
 const SUPABASE_URL = 'https://swxwkcbmqttwaahzqciv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3eHdrY2JtcXR0d2FhaHpxY2l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2NDA5NzksImV4cCI6MjExMDIxNjk3OX0.dUijw_7wz0BYxI9wu8-LlbiHCxbLWf7ZsLZQqMIdMks';
+const BUCKET = 'santunan';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function compressImage(file) {
+  if (!file.type.startsWith('image/')) return Promise.resolve(file);
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, 1280 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = img.width * s; c.height = img.height * s;
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => resolve(b || file), 'image/jpeg', 0.8);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => resolve(file);
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 function appData() {
   return {
     session: null, email: '', password: '', loading: false, saving: false,
     userProfile: { role: 'admin', rt: '', nama: '' },
+    zoomLevel: 1.0,
+    activeTab: 'pengajuan', // 'pengajuan' atau 'master'
     recipients: [], searchQuery: '', filterRT: '', filterKategori: '', filterJumat: '', filterStatus: '',
     selectedIds: [], currentPage: 1, pageSize: 15,
-    showModal: false, showDownloadModal: false, isEdit: false,
+    showModal: false, showDetailModal: false, showDownloadModal: false, detailItem: null, isEdit: false,
     downloadRT: 'SEMUA',
     formData: { 
       id: null, kelurahan: 'Kelurahan', rw: 'RW 01', rt: 'RT 01', 
@@ -508,7 +487,8 @@ function appData() {
       nama: '', nik: '', tempat_tanggal_lahir: '', usia: '', jenis_kelamin: 'Laki-laki',
       alamat_lengkap: '', kategori: 'LANSIA', kategori_lain_jelaskan: '', pekerjaan: '',
       kondisi_penghasilan: 'Tidak memiliki penghasilan tetap', nomor_hp: '', jadwal: 'Jumat 1',
-      status: 'Belum Diterima', alasan_pengajuan: ''
+      status: 'Belum Diterima', alasan_pengajuan: '', is_master: false,
+      foto: '', foto_path: null, _fotoFile: null, dokumen: [], _removedDocs: []
     },
     rtList: ['RT 01','RT 02','RT 03','RT 04','RT 06','RT 07','RT 08','RT 09','RT 10','RT 11','RT 12','RT 13','RT 14','RT 15','RT 16','RW 01'],
 
@@ -523,9 +503,12 @@ function appData() {
         else if (!s) { this.recipients = []; this.userProfile = { role: 'admin', rt: '', nama: '' }; }
       });
 
-      ['searchQuery','filterRT','filterKategori','filterJumat','filterStatus'].forEach(k =>
+      ['searchQuery','filterRT','filterKategori','filterJumat','filterStatus','activeTab'].forEach(k =>
         this.$watch(k, () => { this.currentPage = 1; this.selectedIds = []; }));
     },
+
+    zoomIn() { if (this.zoomLevel < 1.4) this.zoomLevel = parseFloat((this.zoomLevel + 0.05).toFixed(2)); },
+    zoomOut() { if (this.zoomLevel > 0.7) this.zoomLevel = parseFloat((this.zoomLevel - 0.05).toFixed(2)); },
 
     async fetchUserProfileAndData(userId) {
       const { data } = await sb.from('profiles').select('*').eq('id', userId).single();
@@ -546,23 +529,35 @@ function appData() {
 
     async loadData() {
       this.loading = true;
-      let query = sb.from('recipients').select('*').order('id');
+      let query = sb.from('recipients').select('*, dokumen:recipient_docs(id,nama,path)').order('id');
       if (this.userProfile.role === 'rt') query = query.eq('rt', this.userProfile.rt);
       const { data, error } = await query.limit(5000);
       this.loading = false;
       if (error) return alert('Gagal memuat data: ' + error.message);
-      this.recipients = data || [];
+
+      const paths = (data || []).map(r => r.foto_path).filter(Boolean);
+      const map = {};
+      if (paths.length) {
+        const { data: signed } = await sb.storage.from(BUCKET).createSignedUrls(paths, 3600);
+        (signed || []).forEach(s => { if (s.path) map[s.path] = s.signedUrl; });
+      }
+      this.recipients = (data || []).map(r => ({ ...r, foto: map[r.foto_path] || '', dokumen: r.dokumen || [] }));
     },
 
+    get pengajuanList() { return this.recipients.filter(r => !r.is_master); },
+    get masterList() { return this.recipients.filter(r => r.is_master); },
+
     get stats() {
-      const r = this.recipients, total = r.length, diterima = r.filter(x => x.status === 'Sudah Diterima').length;
-      return { total, diterima, lansia: r.filter(x => x.kategori === 'LANSIA').length, janda: r.filter(x => x.kategori === 'JANDA').length };
+      const currentList = this.activeTab === 'pengajuan' ? this.pengajuanList : this.masterList;
+      const total = currentList.length, diterima = currentList.filter(x => x.status === 'Sudah Diterima').length;
+      return { total, diterima, lansia: currentList.filter(x => x.kategori === 'LANSIA').length, janda: currentList.filter(x => x.kategori === 'JANDA').length };
     },
     getPercentage(v) { return this.stats.total ? Math.round(v / this.stats.total * 100) : 0; },
 
     get filteredRecipients() {
+      const list = this.activeTab === 'pengajuan' ? this.pengajuanList : this.masterList;
       const q = this.searchQuery.toLowerCase();
-      return this.recipients.filter(i =>
+      return list.filter(i =>
         (!q || (i.nama || '').toLowerCase().includes(q) || (i.nik || '').toLowerCase().includes(q) || (i.alasan_pengajuan || '').toLowerCase().includes(q)) &&
         (!this.filterRT || i.rt === this.filterRT) && (!this.filterKategori || i.kategori === this.filterKategori) &&
         (!this.filterJumat || i.jadwal === this.filterJumat) && (!this.filterStatus || i.status === this.filterStatus));
@@ -582,24 +577,33 @@ function appData() {
       const old = item.status; item.status = old === 'Sudah Diterima' ? 'Belum Diterima' : 'Sudah Diterima';
       await sb.from('recipients').update({ status: item.status }).eq('id', item.id);
     },
-    async batchSetStatus(ok) {
-      const status = ok ? 'Sudah Diterima' : 'Belum Diterima';
-      await sb.from('recipients').update({ status }).in('id', this.selectedIds);
-      this.loadData();
+
+    async moveToMaster(item) {
+      item.is_master = true;
+      await sb.from('recipients').update({ is_master: true }).eq('id', item.id);
+      alert('Data berhasil disetujui dan dipindahkan ke Data Master Penerima!');
     },
+
+    async batchMoveToMaster() {
+      if (!confirm(`Pindahkan ${this.selectedIds.length} data ke Data Master?`)) return;
+      await sb.from('recipients').update({ is_master: true }).in('id', this.selectedIds);
+      this.selectedIds = [];
+      await this.loadData();
+    },
+
     async batchDelete() {
       if (!confirm(`Hapus ${this.selectedIds.length} data terpilih?`)) return;
       await sb.from('recipients').delete().in('id', this.selectedIds);
       this.selectedIds = [];
-      this.loadData();
-    },
-    async deleteItem(id) {
-      if (!confirm('Hapus data pengajuan ini?')) return;
-      await sb.from('recipients').delete().eq('id', id);
-      this.loadData();
+      await this.loadData();
     },
 
-    // FITUR IMPORT / UNGGAH EXCEL (KHUSUS PENGURUS RW / ADMIN)
+    async deleteItem(id) {
+      if (!confirm('Hapus data ini?')) return;
+      await sb.from('recipients').delete().eq('id', id);
+      await this.loadData();
+    },
+
     async handleFileUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -614,24 +618,25 @@ function appData() {
           if (!confirm(`Impor ${json.length} data pengajuan ke database?`)) return;
           this.loading = true;
           const formattedRows = json.map(row => ({
-            kelurahan: String(row['Kelurahan'] || row['kelurahan'] || 'Kelurahan').trim(),
-            rw: String(row['RW'] || row['rw'] || 'RW 01').trim(),
-            rt: String(row['RT'] || row['rt'] || 'RT 01').trim(),
-            nama_ketua_rt: String(row['Nama Ketua RT'] || row['nama_ketua_rt'] || '').trim(),
-            nama: String(row['Nama'] || row['nama'] || row['Nama Penerima'] || '').trim(),
-            nik: String(row['NIK'] || row['nik'] || '').trim(),
-            tempat_tanggal_lahir: String(row['TTL'] || row['tempat_tanggal_lahir'] || '').trim(),
-            usia: String(row['Usia'] || row['usia'] || '').trim(),
-            jenis_kelamin: String(row['Jenis Kelamin'] || row['jenis_kelamin'] || 'Laki-laki').trim(),
-            alamat_lengkap: String(row['Alamat'] || row['alamat_lengkap'] || '').trim(),
-            kategori: String(row['Kategori'] || row['kategori'] || 'LANSIA').trim(),
-            kategori_lain_jelaskan: String(row['Keterangan Lain'] || row['kategori_lain_jelaskan'] || '').trim(),
-            pekerjaan: String(row['Pekerjaan'] || row['pekerjaan'] || '').trim(),
-            kondisi_penghasilan: String(row['Penghasilan'] || row['kondisi_penghasilan'] || 'Tidak memiliki penghasilan tetap').trim(),
-            nomor_hp: String(row['No HP'] || row['nomor_hp'] || '').trim(),
-            jadwal: String(row['Jadwal'] || row['jadwal'] || 'Jumat 1').trim(),
-            status: String(row['Status'] || row['status'] || 'Belum Diterima').trim(),
-            alasan_pengajuan: String(row['Alasan Pengajuan'] || row['alasan_pengajuan'] || '').trim()
+            kelurahan: String(row['Kelurahan'] || 'Kelurahan').trim(),
+            rw: String(row['RW'] || 'RW 01').trim(),
+            rt: String(row['RT'] || 'RT 01').trim(),
+            nama_ketua_rt: String(row['Nama Ketua RT'] || '').trim(),
+            nama: String(row['Nama'] || row['Nama Penerima'] || '').trim(),
+            nik: String(row['NIK'] || '').trim(),
+            tempat_tanggal_lahir: String(row['TTL'] || '').trim(),
+            usia: String(row['Usia'] || '').trim(),
+            jenis_kelamin: String(row['Jenis Kelamin'] || 'Laki-laki').trim(),
+            alamat_lengkap: String(row['Alamat'] || '').trim(),
+            kategori: String(row['Kategori'] || 'LANSIA').trim(),
+            kategori_lain_jelaskan: String(row['Keterangan Lain'] || '').trim(),
+            pekerjaan: String(row['Pekerjaan'] || '').trim(),
+            kondisi_penghasilan: String(row['Penghasilan'] || 'Tidak memiliki penghasilan tetap').trim(),
+            nomor_hp: String(row['No HP'] || '').trim(),
+            jadwal: String(row['Jadwal'] || 'Jumat 1').trim(),
+            status: String(row['Status'] || 'Belum Diterima').trim(),
+            alasan_pengajuan: String(row['Alasan Pengajuan'] || '').trim(),
+            is_master: false
           })).filter(r => r.nama);
 
           const { error } = await sb.from('recipients').insert(formattedRows);
@@ -644,23 +649,15 @@ function appData() {
       reader.readAsArrayBuffer(file);
     },
 
-    // FITUR RESET DATA (KHUSUS PENGURUS RW / ADMIN)
     async resetAllData() {
-      if (!confirm('PERINGATAN: Tindakan ini akan menghapus SELURUH data pengajuan di database secara permanen! Lanjutkan?')) return;
-      if (!confirm('Konfirmasi sekali lagi: Yakin ingin mereset seluruh data?')) return;
-
+      if (!confirm('PERINGATAN: Hapus SELURUH data?')) return;
       this.loading = true;
       try {
-        const { error } = await sb.from('recipients').delete().neq('id', 0);
-        if (error) throw error;
-        this.recipients = [];
-        this.selectedIds = [];
+        await sb.from('recipients').delete().neq('id', 0);
+        this.recipients = []; this.selectedIds = [];
         alert('Seluruh data berhasil direset.');
-      } catch (err) {
-        alert('Gagal mereset: ' + err.message);
-      } finally {
-        this.loading = false;
-      }
+      } catch (err) { alert('Gagal mereset: ' + err.message); }
+      finally { this.loading = false; }
     },
 
     openAddModal() {
@@ -672,36 +669,91 @@ function appData() {
         nama: '', nik: '', tempat_tanggal_lahir: '', usia: '', jenis_kelamin: 'Laki-laki',
         alamat_lengkap: '', kategori: 'LANSIA', kategori_lain_jelaskan: '', pekerjaan: '',
         kondisi_penghasilan: 'Tidak memiliki penghasilan tetap', nomor_hp: '', jadwal: 'Jumat 1',
-        status: 'Belum Diterima', alasan_pengajuan: ''
+        status: 'Belum Diterima', alasan_pengajuan: '', is_master: this.activeTab === 'master',
+        foto: '', foto_path: null, _fotoFile: null, dokumen: [], _removedDocs: []
       };
       this.showModal = true;
     },
+
     openEditModal(item) {
       this.isEdit = true;
-      this.formData = { ...item };
+      this.formData = { ...item, dokumen: (item.dokumen || []).map(d => ({ ...d })), _fotoFile: null, _removedDocs: [] };
       this.showModal = true;
+    },
+
+    async openDetailModal(item) {
+      this.detailItem = item; 
+      this.showDetailModal = true;
+      const paths = (item.dokumen || []).map(d => d.path).filter(Boolean);
+      if (paths.length) {
+        const { data } = await sb.storage.from(BUCKET).createSignedUrls(paths, 600);
+        const map = {}; (data || []).forEach(s => map[s.path] = s.signedUrl);
+        item.dokumen.forEach(d => d.url = map[d.path] || '');
+      }
+    },
+
+    handlePhotoUpload(e) {
+      const file = e.target.files[0]; if (!file) return;
+      this.formData._fotoFile = file; this.formData.foto = URL.createObjectURL(file);
+    },
+
+    handleDocUpload(e) {
+      Array.from(e.target.files).forEach(file => this.formData.dokumen.push({ nama: file.name, file, url: URL.createObjectURL(file) }));
+      e.target.value = '';
+    },
+
+    removeDoc(i) {
+      const d = this.formData.dokumen[i]; if (d.id) this.formData._removedDocs.push(d);
+      this.formData.dokumen.splice(i, 1);
     },
 
     async saveForm() {
       const f = this.formData; this.saving = true;
       if (this.userProfile.role === 'rt') f.rt = this.userProfile.rt;
+      const safe = n => n.replace(/[^a-zA-Z0-9._-]/g, '_');
       try {
+        const payload = {
+          kelurahan: f.kelurahan, rw: f.rw, rt: f.rt, nama_ketua_rt: f.nama_ketua_rt,
+          nama_ketua_rw: f.nama_ketua_rw, tanggal_pengajuan: f.tanggal_pengajuan,
+          nama: f.nama.trim(), nik: f.nik, tempat_tanggal_lahir: f.tempat_tanggal_lahir,
+          usia: f.usia, jenis_kelamin: f.jenis_kelamin, alamat_lengkap: f.alamat_lengkap,
+          kategori: f.kategori, kategori_lain_jelaskan: f.kategori_lain_jelaskan,
+          pekerjaan: f.pekerjaan, kondisi_penghasilan: f.kondisi_penghasilan,
+          nomor_hp: f.nomor_hp, jadwal: f.jadwal, status: f.status,
+          alasan_pengajuan: f.alasan_pengajuan, is_master: f.is_master
+        };
+
+        let id = f.id;
         if (this.isEdit) {
-          const { error } = await sb.from('recipients').update(f).eq('id', f.id);
-          if (error) throw error;
+          const { error } = await sb.from('recipients').update(payload).eq('id', id); if (error) throw error;
         } else {
-          delete f.id;
-          const { error } = await sb.from('recipients').insert(f);
-          if (error) throw error;
+          const { data, error } = await sb.from('recipients').insert(payload).select().single(); if (error) throw error; id = data.id;
         }
-        this.showModal = false;
-        await this.loadData();
-        alert('Formulir pengajuan berhasil disimpan!');
-      } catch (err) {
-        alert('Gagal menyimpan: ' + err.message);
-      } finally {
-        this.saving = false;
-      }
+
+        if (f._fotoFile) {
+          const blob = await compressImage(f._fotoFile);
+          const path = `foto/${id}/${Date.now()}.jpg`;
+          const up = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type }); if (up.error) throw up.error;
+          if (f.foto_path) await sb.storage.from(BUCKET).remove([f.foto_path]);
+          await sb.from('recipients').update({ foto_path: path }).eq('id', id);
+        }
+
+        if (f._removedDocs && f._removedDocs.length) {
+          await sb.storage.from(BUCKET).remove(f._removedDocs.map(d => d.path));
+          await sb.from('recipient_docs').delete().in('id', f._removedDocs.map(d => d.id));
+        }
+
+        for (const d of (f.dokumen || []).filter(d => d.file)) {
+          const blob = await compressImage(d.file);
+          const path = `dokumen/${id}/${Date.now()}_${safe(d.nama)}`;
+          const up = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || d.file.type }); if (up.error) throw up.error;
+          const { error } = await sb.from('recipient_docs').insert({ recipient_id: id, nama: d.nama, path }); if (error) throw error;
+        }
+
+        this.showModal = false; await this.loadData();
+        alert('Data berhasil disimpan!');
+      } catch (e) { alert('Gagal menyimpan: ' + e.message); }
+      this.saving = false;
     },
 
     openDownloadModal() { 
@@ -710,9 +762,9 @@ function appData() {
     },
 
     exportToExcel() {
-      let data = this.recipients;
+      let data = this.activeTab === 'pengajuan' ? this.pengajuanList : this.masterList;
       if (this.downloadRT !== 'SEMUA') data = data.filter(r => r.rt === this.downloadRT);
-      if (!data.length) return alert('Tidak ada data untuk diunduh.');
+      if (!data.length) return alert('Tidak ada data.');
 
       const excelRows = data.map((r, i) => ({
         "No": i + 1, "Kelurahan": r.kelurahan, "RW": r.rw, "RT": r.rt,
@@ -726,8 +778,8 @@ function appData() {
 
       const ws = XLSX.utils.json_to_sheet(excelRows);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Pengajuan Jumat Mubarak");
-      XLSX.writeFile(wb, `Rekap_Pengajuan_${this.downloadRT}.xlsx`);
+      XLSX.utils.book_append_sheet(wb, ws, this.activeTab === 'pengajuan' ? "Pengajuan" : "Data Master");
+      XLSX.writeFile(wb, `Rekap_${this.activeTab}_${this.downloadRT}.xlsx`);
       this.showDownloadModal = false;
     },
 
@@ -736,7 +788,6 @@ function appData() {
       document.getElementById('p-rw').innerText = item.rw || 'RW 01';
       document.getElementById('p-rt').innerText = item.rt || '-';
       document.getElementById('p-ketua-rt').innerText = item.nama_ketua_rt || '( .................................... )';
-      document.getElementById('p-ketua-rw').innerText = item.nama_ketua_rw || 'DR. H. ABDUL KADIR ABU, Lc. MA.';
       document.getElementById('p-tanggal').innerText = item.tanggal_pengajuan || '-';
       
       document.getElementById('p-nama').innerText = item.nama || '-';
@@ -753,7 +804,6 @@ function appData() {
       
       document.getElementById('p-alasan').innerText = item.alasan_pengajuan || '-';
       document.getElementById('p-sign-rt').innerText = '(' + (item.rt || 'RT') + ')';
-      document.getElementById('p-name-rt').innerText = item.nama_ketua_rt ? item.nama_ketua_rt : '( ............................................ )';
       document.getElementById('p-print-date').innerText = item.tanggal_pengajuan || new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
 
       setTimeout(() => { window.print(); }, 300);
