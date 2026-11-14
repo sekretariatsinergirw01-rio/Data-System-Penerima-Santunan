@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Santunan Jumat Berkah RW 01 - Yayasan Amsakah</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<!-- SheetJS untuk ekspor Excel sesuai template resmi -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  [x-cloak]{display:none!important}
+  #print-area{display:none}
+  @media print {
+    body > *:not(#print-area) { display: none !important; }
+    #print-area { display: block !important; }
+    .page-break { page-break-after: always; }
+  }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800" x-data="appData()" x-init="initApp()">
+
+<!-- LOGIN MODAL -->
+<div x-show="!session" x-cloak class="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+  <form @submit.prevent="login()" class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm space-y-4 border border-slate-100">
+    <div class="text-center space-y-1">
+      <div class="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl mx-auto flex items-center justify-center font-bold text-xl mb-2">YA</div>
+      <h2 class="text-lg font-bold text-slate-900">Login Pengurus</h2>
+      <p class="text-xs text-slate-500">Yayasan Amsakah - RW.01</p>
+    </div>
+    <div class="space-y-3">
+      <input type="email" x-model="email" required placeholder="Email Pengurus Supabase" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
+      <input type="password" x-model="password" required placeholder="Password" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
+      <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-emerald-600/20">Masuk Sistem</button>
+    </div>
+  </form>
+</div>
+
+<!-- HEADER -->
+<header class="bg-emerald-700 text-white shadow-md no-print">
+  <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <div class="flex items-center space-x-2">
+        <span class="px-2 py-0.5 bg-emerald-800 text-emerald-200 text-[10px] font-bold rounded">YAYASAN AMSAKAH</span>
+        <span class="text-xs text-emerald-100">RW.01</span>
+      </div>
+      <h1 class="text-xl font-bold tracking-tight mt-0.5">Pendataan Penerima Santunan Jumat Berkah</h1>
+    </div>
+    <div class="flex flex-wrap gap-2 text-xs font-semibold">
+      <button @click="openAddModal()" class="px-3.5 py-2 bg-white text-emerald-700 hover:bg-emerald-50 rounded-xl shadow-sm transition flex items-center gap-1.5">
+        <span>+ Tambah Data</span>
+      </button>
+      <button @click="openDownloadModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition flex items-center gap-1.5">
+        <span>📥 Unduh Data (Excel / PDF)</span>
+      </button>
+      <button @click="printReceipts()" class="px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl shadow-sm transition flex items-center gap-1.5">
+        <span>🖨️ Cetak Tanda Terima</span>
+      </button>
+      <button @click="seedDefaultData()" class="px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl shadow-sm transition">
+        Muat Data Awal (200 Data)
+      </button>
+      <button @click="logout()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-sm transition">Keluar</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6 no-print">
+
+  <!-- STATISTIK -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+      <p class="text-xs font-medium text-slate-500">Total Penerima</p>
+      <p class="text-2xl font-bold text-slate-900 mt-1" x-text="stats.total"></p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+      <p class="text-xs font-medium text-slate-500">Sudah Diterima</p>
+      <p class="text-2xl font-bold text-emerald-700 mt-1" x-text="stats.diterima + ' (' + getPercentage(stats.diterima) + '%)'"></p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+      <p class="text-xs font-medium text-slate-500">Lansia / Janda</p>
+      <p class="text-2xl font-bold text-slate-900 mt-1" x-text="stats.lansia + ' / ' + stats.janda"></p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+      <p class="text-xs font-medium text-slate-500">Pengurus (RT/RW)</p>
+      <p class="text-2xl font-bold text-slate-900 mt-1" x-text="stats.pengurus"></p>
+    </div>
+  </section>
+
+  <!-- JUMAT PROGRESS -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <template x-for="n in [1,2,3,4]" :key="n">
+      <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm space-y-2">
+        <div class="flex justify-between text-xs">
+          <span class="font-bold text-slate-700" x-text="'Jumat ' + n"></span>
+          <span class="text-slate-500" x-text="getJumatDone(n) + ' / ' + getJumatCount(n) + ' selesai'"></span>
+        </div>
+        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div class="h-full bg-emerald-500 rounded-full transition-all duration-500" :style="'width:' + getJumatProgress(n) + '%'"></div>
+        </div>
+      </div>
+    </template>
+  </section>
+
+  <!-- FILTER & PENCARIAN -->
+  <section class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm space-y-3">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+      <input type="text" x-model.debounce.300ms="searchQuery" placeholder="Cari nama / keterangan..." class="col-span-2 md:col-span-1 px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600">
+      <select x-model="filterRT" class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600">
+        <option value="">Semua Wilayah</option>
+        <template x-for="rt in rtList" :key="rt"><option :value="rt" x-text="rt"></option></template>
+      </select>
+      <select x-model="filterKategori" class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600">
+        <option value="">Semua Kategori</option>
+        <option>LANSIA</option><option>JANDA</option><option>Ketua RT</option><option>Ketua RW</option><option>BELUM MENIKAH</option><option>LAIN-LAIN</option>
+      </select>
+      <select x-model="filterJumat" class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600">
+        <option value="">Semua Jadwal</option><option>Jumat 1</option><option>Jumat 2</option><option>Jumat 3</option><option>Jumat 4</option>
+      </select>
+      <select x-model="filterStatus" class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600">
+        <option value="">Semua Status</option><option>Sudah Diterima</option><option>Belum Diterima</option>
+      </select>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
+      <div class="flex items-center space-x-2">
+        <span>Menampilkan <strong class="text-slate-800" x-text="filteredRecipients.length"></strong> dari <strong class="text-slate-800" x-text="recipients.length"></strong> data <span x-show="loading">(memuat...)</span></span>
+        <button x-show="searchQuery || filterRT || filterKategori || filterJumat || filterStatus" @click="clearFilters()" class="text-emerald-600 hover:underline font-medium">Reset Filter</button>
+      </div>
+
+      <div class="flex items-center space-x-2" x-show="selectedIds.length > 0">
+        <span class="font-semibold text-emerald-700" x-text="selectedIds.length + ' terpilih'"></span>
+        <button @click="batchSetStatus(true)" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition">Tandai Diterima</button>
+        <button @click="batchSetStatus(false)" class="px-2.5 py-1 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 transition">Tandai Belum</button>
+        <button @click="batchDelete()" class="px-2.5 py-1 bg-rose-600 text-white rounded-lg font-medium hover:bg-rose-700 transition">Hapus Terpilih</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TABEL DATA -->
+  <section class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase font-semibold">
+            <th class="p-3.5 w-10 text-center"><input type="checkbox" @change="toggleSelectAll($event)" :checked="isAllSelected" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"></th>
+            <th class="p-3.5 w-12 text-center">No</th>
+            <th class="p-3.5">Penerima</th>
+            <th class="p-3.5">Wilayah</th>
+            <th class="p-3.5">Kategori</th>
+            <th class="p-3.5">Jadwal</th>
+            <th class="p-3.5">Dok</th>
+            <th class="p-3.5">Status</th>
+            <th class="p-3.5">Keterangan</th>
+            <th class="p-3.5 text-center">Aksi</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-slate-700">
+          <template x-for="(item, index) in paginatedRecipients" :key="item.id">
+            <tr class="hover:bg-slate-50/60 transition-colors" :class="item.status === 'Sudah Diterima' ? 'bg-emerald-50/30' : ''">
+              <td class="p-3.5 text-center"><input type="checkbox" :value="item.id" x-model.number="selectedIds" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"></td>
+              <td class="p-3.5 font-mono text-xs text-slate-400 text-center" x-text="(currentPage - 1) * pageSize + index + 1"></td>
+              <td class="p-3.5">
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-full overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center font-bold text-slate-500 text-xs">
+                    <img x-show="item.foto" :src="item.foto" class="w-full h-full object-cover">
+                    <span x-show="!item.foto" x-text="item.nama.charAt(0)"></span>
+                  </div>
+                  <div>
+                    <span class="font-semibold text-slate-900 cursor-pointer hover:text-emerald-700" @click="openDetailModal(item)" x-text="item.nama"></span>
+                  </div>
+                </div>
+              </td>
+              <td class="p-3.5"><span class="px-2.5 py-1 rounded-lg text-xs bg-slate-100 font-semibold text-slate-700" x-text="item.rt"></span></td>
+              <td class="p-3.5">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  :class="{
+                    'bg-purple-100 text-purple-800': item.kategori === 'LANSIA',
+                    'bg-rose-100 text-rose-800': item.kategori === 'JANDA',
+                    'bg-blue-100 text-blue-800': item.kategori.includes('Ketua'),
+                    'bg-teal-100 text-teal-800': item.kategori === 'BELUM MENIKAH',
+                    'bg-indigo-100 text-indigo-800': item.kategori === 'LAIN-LAIN'
+                  }" x-text="item.kategori"></span>
+              </td>
+              <td class="p-3.5 text-xs font-medium text-slate-600" x-text="item.jadwal"></td>
+              <td class="p-3.5">
+                <span class="text-xs px-2 py-0.5 rounded-md" :class="(item.dokumen||[]).length > 0 ? 'bg-emerald-100 text-emerald-800 font-semibold' : 'bg-slate-100 text-slate-400'" x-text="(item.dokumen||[]).length"></span>
+              </td>
+              <td class="p-3.5">
+                <button @click="toggleStatus(item)" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shadow-sm transition"
+                  :class="item.status === 'Sudah Diterima' ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'">
+                  <span x-text="item.status"></span>
+                </button>
+              </td>
+              <td class="p-3.5 text-xs text-slate-500 max-w-xs truncate" x-text="item.keterangan || '-'"></td>
+              <td class="p-3.5 text-center whitespace-nowrap text-xs">
+                <button @click="openDetailModal(item)" class="px-2 py-1 text-emerald-700 hover:bg-emerald-50 rounded font-medium">Detail</button>
+                <button @click="openEditModal(item)" class="px-2 py-1 text-slate-600 hover:bg-slate-100 rounded font-medium">Edit</button>
+                <button @click="deleteItem(item.id)" class="px-2 py-1 text-rose-600 hover:bg-rose-50 rounded font-medium">Hapus</button>
+              </td>
+            </tr>
+          </template>
+          <template x-if="filteredRecipients.length === 0">
+            <tr><td colspan="10" class="p-12 text-center text-slate-400">
+              <p class="font-medium text-slate-600 text-base">Belum ada data penerima santunan.</p>
+              <p class="text-xs text-slate-400 mt-1">Klik tombol <strong>"Muat Data Awal (200 Data)"</strong> di atas atau tambah data manual.</p>
+            </td></tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+      <div>Halaman <strong class="text-slate-800" x-text="currentPage"></strong> dari <strong class="text-slate-800" x-text="totalPages"></strong></div>
+      <div class="flex space-x-1">
+        <button @click="currentPage = 1" :disabled="currentPage === 1" class="px-2.5 py-1.5 rounded-lg border bg-white disabled:opacity-40">First</button>
+        <button @click="currentPage--" :disabled="currentPage === 1" class="px-2.5 py-1.5 rounded-lg border bg-white disabled:opacity-40">Prev</button>
+        <button @click="currentPage++" :disabled="currentPage >= totalPages" class="px-2.5 py-1.5 rounded-lg border bg-white disabled:opacity-40">Next</button>
+        <button @click="currentPage = totalPages" :disabled="currentPage >= totalPages" class="px-2.5 py-1.5 rounded-lg border bg-white disabled:opacity-40">Last</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- MODAL DOWNLOAD (EXCEL / PDF) -->
+<div x-show="showDownloadModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto no-print">
+  <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="showDownloadModal = false"></div>
+  <div class="relative bg-white w-full max-w-md mx-auto my-12 p-6 rounded-2xl shadow-2xl border border-slate-100 space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <h3 class="text-lg font-bold text-slate-800">Pilih Wilayah & Format Unduhan</h3>
+      <button @click="showDownloadModal = false" class="text-slate-400 hover:text-slate-600 font-bold">×</button>
+    </div>
+    <div class="space-y-3 text-sm">
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih RT / Wilayah</label>
+        <select x-model="downloadRT" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600">
+          <option value="SEMUA">🌐 Semua RT / Wilayah (RW.01 Lengkap)</option>
+          <template x-for="rt in rtList" :key="rt">
+            <option :value="rt" x-text="'Wilayah ' + rt"></option>
+          </template>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Format Berkas</label>
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <button @click="executeDownload('excel')" class="p-3 border-2 border-emerald-600 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl font-semibold text-center transition flex flex-col items-center gap-1">
+            <span class="text-lg">📊</span>
+            <span>Unduh Excel (.xlsx)</span>
+            <span class="text-[10px] text-emerald-600 font-normal">Sesuai Format Template Resmi</span>
+          </button>
+          <button @click="executeDownload('pdf')" class="p-3 border-2 border-rose-600 bg-rose-50 hover:bg-rose-100 text-rose-800 rounded-xl font-semibold text-center transition flex flex-col items-center gap-1">
+            <span class="text-lg">📄</span>
+            <span>Cetak / Unduh PDF</span>
+            <span class="text-[10px] text-rose-600 font-normal">Format Cetak Resmi Yayasan</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end pt-3 border-t border-slate-100">
+      <button @click="showDownloadModal = false" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TAMBAH / EDIT -->
+<div x-show="showModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto no-print">
+  <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="showModal = false"></div>
+  <div class="relative bg-white w-full max-w-xl mx-auto my-8 p-6 rounded-2xl shadow-2xl border border-slate-100">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+      <h3 class="text-lg font-bold text-slate-800" x-text="isEdit ? 'Edit Data Penerima' : 'Tambah Penerima Baru'"></h3>
+      <button @click="showModal = false" class="text-slate-400 hover:text-slate-600">×</button>
+    </div>
+    <form @submit.prevent="saveForm()" class="space-y-4 text-sm">
+      <div class="p-3 bg-slate-50 rounded-xl border flex items-center gap-3">
+        <div class="w-16 h-16 rounded-full overflow-hidden bg-slate-200 shrink-0 border"><img x-show="formData.foto" :src="formData.foto" class="w-full h-full object-cover"></div>
+        <div class="flex-1">
+          <label class="block text-xs font-semibold mb-1">Foto Profil Penerima</label>
+          <input type="file" accept="image/*" @change="handlePhotoUpload($event)" class="text-xs">
+        </div>
+        <button type="button" x-show="formData.foto" @click="formData.foto = ''; formData._fotoFile = null" class="text-xs text-rose-600">Hapus</button>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Nama Lengkap</label>
+        <input type="text" x-model="formData.nama" required placeholder="Contoh: Ibu Minah" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold mb-1">Wilayah RT / RW</label>
+          <select x-model="formData.rt" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600">
+            <template x-for="rt in rtList" :key="rt"><option :value="rt" x-text="rt"></option></template>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1">Kategori</label>
+          <select x-model="formData.kategori" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600">
+            <option>LANSIA</option><option>JANDA</option><option>Ketua RT</option><option>Ketua RW</option><option>BELUM MENIKAH</option><option>LAIN-LAIN</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1">Jadwal Penyaluran</label>
+          <select x-model="formData.jadwal" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600">
+            <option>Jumat 1</option><option>Jumat 2</option><option>Jumat 3</option><option>Jumat 4</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1">Status Penyaluran</label>
+          <select x-model="formData.status" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600">
+            <option>Belum Diterima</option><option>Sudah Diterima</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Dokumen Pendukung (KTP / KK)</label>
+        <input type="file" multiple accept="image/*,application/pdf" @change="handleDocUpload($event)" class="text-xs">
+        <div class="mt-2 space-y-1">
+          <template x-for="(doc, idx) in formData.dokumen" :key="idx">
+            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 border text-xs">
+              <span class="truncate font-medium text-slate-700" x-text="doc.nama"></span>
+              <button type="button" @click="removeDoc(idx)" class="text-rose-600 px-1 font-bold">Hapus</button>
+            </div>
+          </template>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Keterangan / Catatan</label>
+        <textarea x-model="formData.keterangan" rows="2" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600"></textarea>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button type="button" @click="showModal = false" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Batal</button>
+        <button type="submit" :disabled="saving" class="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl disabled:opacity-50 shadow-md" x-text="saving ? 'Menyimpan...' : 'Simpan Data'"></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL DETAIL -->
+<div x-show="showDetailModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto no-print">
+  <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="showDetailModal = false"></div>
+  <div class="relative bg-white w-full max-w-2xl mx-auto my-8 p-6 rounded-2xl shadow-2xl border border-slate-100" x-show="detailItem">
+    <template x-if="detailItem">
+      <div class="space-y-4 text-sm">
+        <div class="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border">
+          <div class="w-20 h-20 rounded-2xl overflow-hidden bg-slate-200 shrink-0 border">
+            <img x-show="detailItem.foto" :src="detailItem.foto" class="w-full h-full object-cover">
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-slate-900" x-text="detailItem.nama"></h2>
+            <p class="text-xs text-slate-500 mt-0.5"><span x-text="detailItem.rt"></span> | <span x-text="detailItem.kategori"></span> | <span x-text="detailItem.jadwal"></span> | <strong class="text-emerald-700" x-text="detailItem.status"></strong></p>
+            <p class="text-xs text-slate-500 mt-1" x-text="detailItem.keterangan ? 'Catatan: ' + detailItem.keterangan : ''"></p>
+          </div>
+        </div>
+        <h4 class="font-bold text-slate-800">Dokumen Pendukung (KTP / KK)</h4>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <template x-for="(doc, idx) in detailItem.dokumen" :key="idx">
+            <div class="p-3 rounded-xl border bg-white space-y-2">
+              <p class="text-xs font-semibold truncate text-slate-700" x-text="doc.nama"></p>
+              <img x-show="doc.url && /\.(jpe?g|png|webp|gif)$/i.test(doc.path)" :src="doc.url" class="w-full h-32 object-cover rounded-lg border">
+              <a :href="doc.url" target="_blank" rel="noopener" class="text-xs text-emerald-600 hover:underline font-medium inline-block">Buka / Unduh Berkas</a>
+            </div>
+          </template>
+        </div>
+        <p x-show="!detailItem.dokumen || detailItem.dokumen.length === 0" class="p-6 text-center border-2 border-dashed rounded-xl text-slate-400 text-xs">Belum ada dokumen yang diunggah.</p>
+        <div class="flex justify-end gap-2 pt-3 border-t">
+          <button @click="showDetailModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-semibold text-slate-700">Tutup</button>
+          <button @click="showDetailModal = false; openEditModal(detailItem)" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold shadow-md">Edit & Upload</button>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
+
+<!-- PRINT / PDF AREA -->
+<div id="print-area">
+  <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
+    <div style="text-align: center; border-bottom: 2px solid #047857; padding-bottom: 12px; margin-bottom: 20px;">
+      <h2 style="margin: 0; font-size: 18px; color: #065f46;">YAYASAN AMSAKAH - RW. 01</h2>
+      <p style="margin: 4px 0 0; font-size: 14px; font-weight: bold;">DAFTAR PENERIMA SANTUNAN JUMAT BERKAH</p>
+      <p style="margin: 2px 0 0; font-size: 12px; color: #555;">Wilayah: <span id="print-wilayah-label">Semua Wilayah</span></p>
+    </div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+      <thead>
+        <tr style="background-color: #047857; color: white;">
+          <th style="border: 1px solid #cbd5e1; padding: 6px; text-align: center; width: 35px;">No.</th>
+          <th style="border: 1px solid #cbd5e1; padding: 6px; text-align: center; width: 50px;">RW</th>
+          <th style="border: 1px solid #cbd5e1; padding: 6px; text-align: center; width: 60px;">RT</th>
+          <th style="border: 1px solid #cbd5e1; padding: 6px; text-align: left;">Nama Penerima</th>
+          <th style="border: 1px solid #cbd5e1; padding: 6px; text-align: center; width: 90px;">Kategori</th>
+          <th style="border: 1px solid #cbd5e1; padding: 6px; text-align: center; width: 70px;">Jumat Ke-</th>
+          <th style="border: 1px solid #cbd5e1; padding: 6px; text-align: left;">Keterangan</th>
+          <th style="border: 1px solid #cbd5e1; padding: 6px; text-align: center; width: 100px;">Tanda Tangan</th>
+        </tr>
+      </thead>
+      <tbody id="print-table-body"></tbody>
+    </table>
+    <div style="margin-top: 30px; display: flex; justify-content: space-between; font-size: 12px;">
+      <div style="text-align: center;">
+        <p>Mengetahui,</p>
+        <p style="font-weight: bold;">Ketua RW. 01</p>
+        <br><br><br>
+        <p style="font-weight: bold; text-decoration: underline;">DR. H. ABDUL KADIR ABU, Lc. MA.</p>
+      </div>
+      <div style="text-align: center;">
+        <p>Jakarta, <span id="print-date"></span></p>
+        <p style="font-weight: bold;">Pengurus Yayasan Amsakah</p>
+        <br><br><br>
+        <p style="font-weight: bold; text-decoration: underline;">( ............................................ )</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== KONFIGURASI SUPABASE NYATA (GANTI DENGAN KREDENSIAL ANDA) ======
+const SUPABASE_URL = 'https://swxwkcbmqttwaahzqciv.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3eHdrY2JtcXR0d2FhaHpxY2l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2NDA5NzksImV4cCI6MjExMDIxNjk3OX0.dUijw_7wz0BYxI9wu8-LlbiHCxbLWf7ZsLZQqMIdMks';
+const BUCKET = 'santunan';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Data 200 penerima awal template resmi (hanya dimuat saat tombol "Muat Data Awal" diklik)
+const defaultTemplateData = [
+  {rt:"RT 01",nama:"DAHLIA IDRIS",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 01",nama:"RATNA ASNI MANALU",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 01",nama:"Nona",kategori:"Ketua RT",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 02",nama:"M.MAULUDIN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 02",nama:"SHELVY",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 02",nama:"Selvy",kategori:"Ketua RT",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"ANANG BIN ATJANG",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"DARINA",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"EDDY SOFIAN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"HJ NURLIS",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"MADIN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"MUALIM",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"NURHAYATI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"RACHMAT S",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"ROCHMULYATI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"SAANI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"SAWI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"SUPARDI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"WAGIYEM",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 03",nama:"WANDA",kategori:"Ketua RT",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"ARMI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"DADANG SYAMSYU RIZAL",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"DEDE RAHMAN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"DODI WAHYU",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"ENNY DAYANTI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"HANY GIRINATA",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"KOMARIYAH",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"MINAH",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"MOH NIZAM",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"RINI GURAJATI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"SUKAENI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"SUTARMI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"SUTARSIH",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 04",nama:"DESI PASHA",kategori:"Ketua RT",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"ACHMAD SUMARDI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"ALI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"ALI HAMBALI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"DJUNAH",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"INDRA SOPYAN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"MAHYANI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"MARYATI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"MOH.RIDWAN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"NANANG ALFARES",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"NANI HELYYANI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"NUR HASANAH",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"NURUL HILAL",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"NURYANI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"SONY BOY",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"TINI MARTINI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 06",nama:"WAHYU SANJAYA",kategori:"Ketua RT",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"ACHMAD ARIFIN",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"AMINAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"ERA SUHANA",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"HARUN EFFENDI",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"KOMARIAH ARSYAD",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"MALANA BIN M.DJAENI",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"MALIJAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"MARYANI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"MUHAMMAD SUBLI",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"NURHAYATI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"NURMALINAH",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"SAIDAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"SALBIYAH",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"SUGIAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"SUKARTINAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"SUTINI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"TRIHATI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"WIDYA NEZAR",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 07",nama:"ANDI MARTIN",kategori:"Ketua RT",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 08",nama:"CHOLIDAH",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 08",nama:"HARNIL BAHRONY",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 08",nama:"INTUR.S",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 08",nama:"LAILAWATI",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 08",nama:"MAEMUNAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 08",nama:"MARTUNAS",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 08",nama:"MARWADI YAHYA",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 08",nama:"RIZAL SUHERMAN",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 08",nama:"SULASTRI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 08",nama:"YANTI ROHATI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 08",nama:"FAHRUL",kategori:"Ketua RT",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"ABDULLAH YUSUF",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"ANWAR LOUTHVY",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"ELVIS",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"HAMIDAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"HASIPAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"KIRMAN",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"M.SIRAD",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"MASROFAH MARZUKI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"MASTURI ROS YUSUF",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"MULYATI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"NURAINI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"ROYKE HARYANTO",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"SURYANTI",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 09",nama:"MT HARYONO",kategori:"Ketua RT",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"DJUMADI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"LILIS",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"MARIYATI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"NURAINI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"NURYANAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"ACHMAD ADE BERDOYONO",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"BAMABANG SADIKIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"IRIANTI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"NENEG PRIHATIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"SUDIRMAN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"TUMINI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"YAYAH",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 10",nama:"RAHMAT JAYA",kategori:"Ketua RT",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"A.NURDJANAH",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"ACHMAD DJAINI.S",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"FARIDAH",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"HANAFI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"MAMAT ROHMAT",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"MASNUN",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"MUCHTAR",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"MUHAMAD YASIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"MURNI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"NURLENAH",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"NURSINIH BT WALIM",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"RAHMAWATI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"ROSITA ABD RAHMAN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"TAUFIK R.A KONTU",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 11",nama:"M IDRUS",kategori:"Ketua RT",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"ATIKAH",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"EDI YUSUF",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"ENDA",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"ERPIANTO",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"HANAPI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"HARNILA",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"HOLILAH",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"M.HUSNY",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"M.RASID",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"MADSANI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"MUHAMAD RUSDIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"MUHAMAD SAID",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"MUHAYAR",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"MULYADI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"MULYATINI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"SITI MULYANI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"SUMIYATI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"SUPARTI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"SYAMSUDIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 12",nama:"DEDI SUPRIATNA",kategori:"Ketua RT",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"ABDUL MADJID",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"IDA FITRIA",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"MARIYUN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"MARKUS JAINUDDIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"TUTI HARTATI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"ZAENABUN",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"RAMITA",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"SURYATI SALEH",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"SYAHRUL",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"USMAN",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"YATI SUMIYATI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 13",nama:"SAEPUDIN",kategori:"Ketua RT",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"ACHMAD YANI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"AMIRUDDIN",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"ANAH RUM",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"APPANDI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"ARMAWATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"BETTY SUMIATI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"ENDANG SUMARNA",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"HARUN",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"HOLILAH",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"IIT LISNAWATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"MADINAHTUL MUSYAROFAH",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"MUHAMAD TABRANI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"MUHAMAD YUSUF",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"NOVRIDAWATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"NUR SUDARYANA",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"ROHITA",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"SUMARNI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"SUMARNI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"SYAFEÍ",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"TADJUDIN",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"TOTONG BIN SAHI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"TUTI HERAWATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"ZAENAL ABIDIN",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 14",nama:"HARIS",kategori:"Ketua RT",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 15",nama:"DARYANI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 15",nama:"MARDJUKI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 15",nama:"NENENG",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 15",nama:"SITI SURYANI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 15",nama:"SRIATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 15",nama:"SUAIB",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 15",nama:"SUWANDI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 15",nama:"URIPAH",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 15",nama:"NANDANG KOMARUDIN",kategori:"Ketua RT",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"AHMAD SOBARI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"ANI MULYANI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"EMY FARIDAH",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"FIRMAN RAIS",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"LILIS SRI MULYATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"LINAH ALI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"MUJENAH",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"NIRMALA",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"NURAINI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"STI RAHAYU",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"YANTO",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RT 16",nama:"ALLAN",kategori:"Ketua RT",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
+  {rt:"RW 01",nama:"DR.H ABDUL KADIR ABU,Lc MA.",kategori:"Ketua RW",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""}
+];
+
+function compressImage(file) {
+  if (!file.type.startsWith('image/')) return Promise.resolve(file);
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, 1280 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = img.width * s; c.height = img.height * s;
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => resolve(b || file), 'image/jpeg', 0.8);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => resolve(file);
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function appData() {
+  return {
+    session: null, email: '', password: '', loading: false, saving: false,
+    recipients: [], searchQuery: '', filterRT: '', filterKategori: '', filterJumat: '', filterStatus: '',
+    selectedIds: [], currentPage: 1, pageSize: 15,
+    showModal: false, showDetailModal: false, showDownloadModal: false, detailItem: null, isEdit: false,
+    downloadRT: 'SEMUA',
+    formData: { id: null, nama: '', rt: 'RT 01', kategori: 'LANSIA', jadwal: 'Jumat 1', status: 'Belum Diterima', keterangan: '', foto: '', foto_path: null, _fotoFile: null, dokumen: [], _removedDocs: [] },
+    rtList: ['RT 01','RT 02','RT 03','RT 04','RT 06','RT 07','RT 08','RT 09','RT 10','RT 11','RT 12','RT 13','RT 14','RT 15','RT 16','RW 01'],
+
+    async initApp() {
+      const { data: { session } } = await sb.auth.getSession();
+      this.session = session;
+      sb.auth.onAuthStateChange((_e, s) => {
+        const was = !!this.session; this.session = s;
+        if (s && !was) this.loadData(); else if (!s) this.recipients = [];
+      });
+      if (session) await this.loadData();
+      ['searchQuery','filterRT','filterKategori','filterJumat','filterStatus'].forEach(k =>
+        this.$watch(k, () => { this.currentPage = 1; this.selectedIds = []; }));
+    },
+
+    async login() {
+      const { error } = await sb.auth.signInWithPassword({ email: this.email, password: this.password });
+      if (error) alert('Login gagal: ' + error.message); else this.password = '';
+    },
+    async logout() { await sb.auth.signOut(); },
+
+    async loadData() {
+      this.loading = true;
+      const { data, error } = await sb.from('recipients').select('*, dokumen:recipient_docs(id,nama,path)').order('id').limit(5000);
+      this.loading = false;
+      if (error) return alert('Gagal memuat data: ' + error.message);
+      const paths = (data || []).map(r => r.foto_path).filter(Boolean);
+      const map = {};
+      if (paths.length) {
+        const { data: signed } = await sb.storage.from(BUCKET).createSignedUrls(paths, 3600);
+        (signed || []).forEach(s => { if (s.path) map[s.path] = s.signedUrl; });
+      }
+      this.recipients = (data || []).map(r => ({ ...r, foto: map[r.foto_path] || '', dokumen: r.dokumen || [] }));
+    },
+
+    get stats() {
+      const r = this.recipients, total = r.length, diterima = r.filter(x => x.status === 'Sudah Diterima').length;
+      return { total, diterima, belumDiterima: total - diterima,
+        lansia: r.filter(x => x.kategori === 'LANSIA').length, janda: r.filter(x => x.kategori === 'JANDA').length,
+        pengurus: r.filter(x => x.kategori.includes('Ketua')).length };
+    },
+    getPercentage(v) { return this.stats.total ? Math.round(v / this.stats.total * 100) : 0; },
+    getJumatCount(n) { return this.recipients.filter(r => r.jadwal === `Jumat ${n}`).length; },
+    getJumatDone(n) { return this.recipients.filter(r => r.jadwal === `Jumat ${n}` && r.status === 'Sudah Diterima').length; },
+    getJumatProgress(n) { const t = this.getJumatCount(n); return t ? Math.round(this.getJumatDone(n) / t * 100) : 0; },
+    
+    get filteredRecipients() {
+      const q = this.searchQuery.toLowerCase();
+      return this.recipients.filter(i =>
+        (!q || i.nama.toLowerCase().includes(q) || (i.keterangan || '').toLowerCase().includes(q)) &&
+        (!this.filterRT || i.rt === this.filterRT) && (!this.filterKategori || i.kategori === this.filterKategori) &&
+        (!this.filterJumat || i.jadwal === this.filterJumat) && (!this.filterStatus || i.status === this.filterStatus));
+    },
+    get totalPages() { return Math.ceil(this.filteredRecipients.length / this.pageSize) || 1; },
+    get paginatedRecipients() {
+      if (this.currentPage > this.totalPages) this.currentPage = this.totalPages;
+      const s = (this.currentPage - 1) * this.pageSize; return this.filteredRecipients.slice(s, s + this.pageSize);
+    },
+    get isAllSelected() { return this.paginatedRecipients.length > 0 && this.paginatedRecipients.every(i => this.selectedIds.includes(i.id)); },
+    toggleSelectAll(e) {
+      const ids = this.paginatedRecipients.map(i => i.id);
+      this.selectedIds = e.target.checked ? [...new Set([...this.selectedIds, ...ids])] : this.selectedIds.filter(id => !ids.includes(id));
+    },
+    clearFilters() { this.searchQuery = this.filterRT = this.filterKategori = this.filterJumat = this.filterStatus = ''; this.currentPage = 1; },
+
+    async toggleStatus(item) {
+      const old = item.status; item.status = old === 'Sudah Diterima' ? 'Belum Diterima' : 'Sudah Diterima';
+      const { error } = await sb.from('recipients').update({ status: item.status }).eq('id', item.id);
+      if (error) { item.status = old; alert(error.message); }
+    },
+    async batchSetStatus(ok) {
+      const status = ok ? 'Sudah Diterima' : 'Belum Diterima';
+      const { error } = await sb.from('recipients').update({ status }).in('id', this.selectedIds);
+      if (error) return alert(error.message);
+      this.recipients.forEach(r => { if (this.selectedIds.includes(r.id)) r.status = status; });
+    },
+
+    async removeFromStorage(rows) {
+      const paths = rows.flatMap(r => [r.foto_path, ...(r.dokumen || []).map(d => d.path)]).filter(Boolean);
+      if (paths.length) await sb.storage.from(BUCKET).remove(paths);
+    },
+    async batchDelete() {
+      if (!confirm(`Hapus ${this.selectedIds.length} data beserta dokumennya?`)) return;
+      await this.removeFromStorage(this.recipients.filter(r => this.selectedIds.includes(r.id)));
+      const { error } = await sb.from('recipients').delete().in('id', this.selectedIds);
+      if (error) return alert(error.message);
+      this.recipients = this.recipients.filter(r => !this.selectedIds.includes(r.id)); this.selectedIds = [];
+    },
+    async deleteItem(id) {
+      if (!confirm('Hapus data ini beserta dokumennya?')) return;
+      await this.removeFromStorage([this.recipients.find(r => r.id === id)]);
+      const { error } = await sb.from('recipients').delete().eq('id', id);
+      if (error) return alert(error.message);
+      this.recipients = this.recipients.filter(r => r.id !== id); this.selectedIds = this.selectedIds.filter(i => i !== id);
+    },
+
+    openAddModal() {
+      this.isEdit = false;
+      this.formData = { id: null, nama: '', rt: 'RT 01', kategori: 'LANSIA', jadwal: 'Jumat 1', status: 'Belum Diterima', keterangan: '', foto: '', foto_path: null, _fotoFile: null, dokumen: [], _removedDocs: [] };
+      this.showModal = true;
+    },
+    openEditModal(item) {
+      this.isEdit = true;
+      this.formData = { ...item, dokumen: (item.dokumen || []).map(d => ({ ...d })), _fotoFile: null, _removedDocs: [] };
+      this.showModal = true;
+    },
+    async openDetailModal(item) {
+      this.detailItem = item; this.showDetailModal = true;
+      const paths = (item.dokumen || []).map(d => d.path);
+      if (paths.length) {
+        const { data } = await sb.storage.from(BUCKET).createSignedUrls(paths, 600);
+        const map = {}; (data || []).forEach(s => map[s.path] = s.signedUrl);
+        item.dokumen.forEach(d => d.url = map[d.path] || '');
+      }
+    },
+    handlePhotoUpload(e) {
+      const file = e.target.files[0]; if (!file) return;
+      this.formData._fotoFile = file; this.formData.foto = URL.createObjectURL(file);
+    },
+    handleDocUpload(e) {
+      Array.from(e.target.files).forEach(file => this.formData.dokumen.push({ nama: file.name, file, url: URL.createObjectURL(file) }));
+      e.target.value = '';
+    },
+    removeDoc(i) {
+      const d = this.formData.dokumen[i]; if (d.id) this.formData._removedDocs.push(d);
+      this.formData.dokumen.splice(i, 1);
+    },
+
+    async saveForm() {
+      const f = this.formData; this.saving = true;
+      const payload = { rt: f.rt, nama: f.nama.trim(), kategori: f.kategori, jadwal: f.jadwal, status: f.status, keterangan: f.keterangan };
+      const safe = n => n.replace(/[^a-zA-Z0-9._-]/g, '_');
+      try {
+        let id = f.id;
+        if (this.isEdit) {
+          const { error } = await sb.from('recipients').update(payload).eq('id', id); if (error) throw error;
+        } else {
+          const { data, error } = await sb.from('recipients').insert(payload).select().single(); if (error) throw error; id = data.id;
+        }
+        if (f._fotoFile) {
+          const blob = await compressImage(f._fotoFile);
+          const path = `foto/${id}/${Date.now()}.jpg`;
+          const up = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type }); if (up.error) throw up.error;
+          if (f.foto_path) await sb.storage.from(BUCKET).remove([f.foto_path]);
+          await sb.from('recipients').update({ foto_path: path }).eq('id', id);
+        } else if (this.isEdit && !f.foto && f.foto_path) {
+          await sb.storage.from(BUCKET).remove([f.foto_path]);
+          await sb.from('recipients').update({ foto_path: null }).eq('id', id);
+        }
+        if (f._removedDocs.length) {
+          await sb.storage.from(BUCKET).remove(f._removedDocs.map(d => d.path));
+          await sb.from('recipient_docs').delete().in('id', f._removedDocs.map(d => d.id));
+        }
+        for (const d of f.dokumen.filter(d => d.file)) {
+          const blob = await compressImage(d.file);
+          const path = `dokumen/${id}/${Date.now()}_${safe(d.nama)}`;
+          const up = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || d.file.type }); if (up.error) throw up.error;
+          const { error } = await sb.from('recipient_docs').insert({ recipient_id: id, nama: d.nama, path }); if (error) throw error;
+        }
+        this.showModal = false; await this.loadData();
+      } catch (e) { alert('Gagal menyimpan: ' + e.message); }
+      this.saving = false;
+    },
+
+    async seedDefaultData() {
+      if (this.recipients.length && !confirm('Data sudah ada. Ingin menambahkan 200 data awal template resmi?')) return;
+      const rows = defaultTemplateData.map(r => ({ ...r }));
+      const { error } = await sb.from('recipients').insert(rows);
+      if (error) return alert('Gagal memuat data awal: ' + error.message);
+      await this.loadData();
+      alert('Berhasil memuat 200 data awal Yayasan Amsakah RW 01!');
+    },
+
+    openDownloadModal() {
+      this.showDownloadModal = true;
+    },
+
+    executeDownload(type) {
+      let dataToExport = this.recipients;
+      if (this.downloadRT !== 'SEMUA') {
+        dataToExport = this.recipients.filter(r => r.rt === this.downloadRT);
+      }
+      if (dataToExport.length === 0) {
+        return alert('Tidak ada data untuk wilayah yang dipilih.');
+      }
+
+      if (type === 'excel') {
+        if (typeof XLSX === 'undefined') {
+          console.warn('Pustaka SheetJS tidak terdeteksi, mengalihkan ke format CSV.');
+          this.executeDownloadCSV(dataToExport);
+          this.showDownloadModal = false;
+          return;
+        }
+
+        const excelRows = dataToExport.map((r, i) => {
+          let jumatNum = 1;
+          if (r.jadwal && r.jadwal.includes('Jumat')) {
+            jumatNum = parseInt(r.jadwal.replace('Jumat ', '')) || 1;
+          }
+          return {
+            "No.": i + 1,
+            "RW": "RW 01",
+            "RT": r.rt,
+            "Nama": r.nama,
+            "Kategori": r.kategori,
+            "Jumat Ke-": jumatNum,
+            "Keterangan": r.keterangan || ""
+          };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(excelRows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Data Penerima");
+        
+        const wscols = [{wch:6},{wch:8},{wch:8},{wch:30},{wch:15},{wch:10},{wch:20}];
+        ws['!cols'] = wscols;
+
+        const filename = `Data_Santunan_RW01_${this.downloadRT.replace(/\s+/g, '_')}.xlsx`;
+        XLSX.writeFile(wb, filename);
+        this.showDownloadModal = false;
+      } else {
+        document.getElementById('print-wilayah-label').innerText = this.downloadRT === 'SEMUA' ? 'RW 01 (Semua Wilayah)' : 'Wilayah ' + this.downloadRT;
+        document.getElementById('print-date').innerText = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        
+        const tbody = document.getElementById('print-table-body');
+        tbody.innerHTML = '';
+        dataToExport.forEach((r, i) => {
+          let jumatNum = 1;
+          if (r.jadwal && r.jadwal.includes('Jumat')) {
+            jumatNum = parseInt(r.jadwal.replace('Jumat ', '')) || 1;
+          }
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: center;">${i + 1}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: center;">RW 01</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: center;">${r.rt}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: left; font-weight: bold;">${r.nama}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: center;">${r.kategori}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: center;">${jumatNum}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: left;">${r.keterangan || '-'}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: center;"></td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        this.showDownloadModal = false;
+        setTimeout(() => { window.print(); }, 300);
+      }
+    },
+
+    executeDownloadCSV(dataToExport) {
+      let csvContent = "data:text/csv;charset=utf-8,No,RW,RT,Nama,Kategori,Jumat Ke-,Keterangan\n";
+      dataToExport.forEach((r, i) => {
+        let jumatNum = 1;
+        if (r.jadwal && r.jadwal.includes('Jumat')) {
+          jumatNum = parseInt(r.jadwal.replace('Jumat ', '')) || 1;
+        }
+        const row = [i + 1, "RW 01", r.rt, `"${r.nama}"`, r.kategori, jumatNum, `"${r.keterangan || ''}"`].join(",");
+        csvContent += row + "\r\n";
+      });
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `Data_Santunan_RW01_${this.downloadRT.replace(/\s+/g, '_')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    },
+
+    printReceipts() {
+      this.downloadRT = 'SEMUA';
+      this.executeDownload('pdf');
+    }
+  };
+}
+</script>
+</body>
+</html>
