@@ -30,7 +30,7 @@
       <p class="text-xs text-slate-500">Yayasan Amsakah - RW.01</p>
     </div>
     <div class="space-y-3">
-      <input type="email" x-model="email" required placeholder="Email Pengurus / RT" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
+      <input type="email" x-model="email" required placeholder="Email (Pengurus RW / Ketua RT)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
       <input type="password" x-model="password" required placeholder="Password" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
       <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-emerald-600/20">Masuk Sistem</button>
     </div>
@@ -42,7 +42,7 @@
   <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
     <div>
       <div class="flex items-center space-x-2">
-        <span class="px-2 py-0.5 bg-emerald-800 text-emerald-200 text-[10px] font-bold rounded" x-text="userProfile.role === 'admin' ? 'ADMIN YAYASAN' : 'KETUA ' + userProfile.rt"></span>
+        <span class="px-2 py-0.5 bg-emerald-800 text-emerald-200 text-[10px] font-bold rounded" x-text="userProfile.role === 'admin' ? 'PENGURUS RW / ADMIN' : 'KETUA ' + userProfile.rt"></span>
         <span class="text-xs text-emerald-100" x-text="userProfile.nama"></span>
       </div>
       <h1 class="text-xl font-bold tracking-tight mt-0.5">Pengajuan & Pendataan Santunan Jumat Mubarak</h1>
@@ -51,9 +51,22 @@
       <button @click="openAddModal()" class="px-3.5 py-2 bg-white text-emerald-700 hover:bg-emerald-50 rounded-xl shadow-sm transition flex items-center gap-1.5 font-bold">
         <span>+ Buat Pengajuan Baru</span>
       </button>
+
+      <!-- TOMBOL IMPORT EXCEL HANYA MUNCUL DI TAMPILAN PENGURUS RW / ADMIN -->
+      <label x-show="userProfile.role === 'admin'" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer" title="Impor Data Massal dari Excel">
+        <span>📂 Unggah / Import Excel</span>
+        <input type="file" accept=".xlsx, .xls, .csv" @change="handleFileUpload($event)" class="hidden">
+      </label>
+
       <button @click="openDownloadModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition flex items-center gap-1.5">
         <span>📥 Unduh Excel / Rekap</span>
       </button>
+
+      <!-- TOMBOL RESET DATA KHUSUS PENGURUS RW / ADMIN -->
+      <button x-show="userProfile.role === 'admin'" @click="resetAllData()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-sm transition" title="Hapus seluruh data">
+        ⚠️ Reset Data
+      </button>
+
       <button @click="logout()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-sm transition">Keluar</button>
     </div>
   </div>
@@ -77,7 +90,7 @@
     </div>
     <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
       <p class="text-xs font-medium text-slate-500">Wilayah Aktif</p>
-      <p class="text-2xl font-bold text-slate-900 mt-1" x-text="userProfile.role === 'admin' ? (filterRT || 'Semua RT') : userProfile.rt"></p>
+      <p class="text-2xl font-bold text-slate-900 mt-1" x-text="userProfile.role === 'admin' ? (filterRT || 'Semua RT / RW 01') : userProfile.rt"></p>
     </div>
   </section>
 
@@ -86,7 +99,8 @@
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
       <input type="text" x-model.debounce.300ms="searchQuery" placeholder="Cari nama, NIK, alasan..." class="col-span-2 md:col-span-1 px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600">
       
-      <select x-model="filterRT" :disabled="userProfile.role === 'rt'" class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600 disabled:bg-slate-100">
+      <!-- Filter RT dikunci otomatis jika login sebagai Ketua RT -->
+      <select x-model="filterRT" :disabled="userProfile.role === 'rt'" class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600 disabled:bg-slate-100 disabled:text-slate-500">
         <option value="">Semua Wilayah</option>
         <template x-for="rt in rtList" :key="rt"><option :value="rt" x-text="rt"></option></template>
       </select>
@@ -104,7 +118,7 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
-      <div>Menampilkan <strong class="text-slate-800" x-text="filteredRecipients.length"></strong> dari <strong class="text-slate-800" x-text="recipients.length"></strong> data</div>
+      <div>Menampilkan <strong class="text-slate-800" x-text="filteredRecipients.length"></strong> dari <strong class="text-slate-800" x-text="recipients.length"></strong> data <span x-show="loading">(memuat...)</span></div>
       <div class="flex items-center space-x-2" x-show="selectedIds.length > 0">
         <span class="font-semibold text-emerald-700" x-text="selectedIds.length + ' terpilih'"></span>
         <button @click="batchSetStatus(true)" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition">Tandai Disetujui</button>
@@ -158,7 +172,7 @@
           <template x-if="filteredRecipients.length === 0">
             <tr><td colspan="8" class="p-12 text-center text-slate-400">
               <p class="font-medium text-slate-600 text-base">Belum ada data pengajuan.</p>
-              <p class="text-xs text-slate-400 mt-1">Klik tombol <strong>"+ Buat Pengajuan Baru"</strong> untuk mengisi formulir resmi.</p>
+              <p class="text-xs text-slate-400 mt-1">Klik tombol <strong>"+ Buat Pengajuan Baru"</strong> atau unggah via Excel (khusus Pengurus RW).</p>
             </td></tr>
           </template>
         </tbody>
@@ -176,7 +190,7 @@
   </section>
 </main>
 
-<!-- MODAL FORMULIR PENGAJUAN (SESUAI PDF RESMI) -->
+<!-- MODAL FORMULIR PENGAJUAN (SESUAI DOKUMEN RESMI) -->
 <div x-show="showModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto no-print p-4 flex items-center justify-center">
   <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="showModal = false"></div>
   <div class="relative bg-white w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-2xl border border-slate-100 space-y-6">
@@ -320,7 +334,7 @@
     <div class="space-y-3 text-sm">
       <div>
         <label class="block text-xs font-semibold mb-1">Pilih Wilayah RT</label>
-        <select x-model="downloadRT" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
+        <select x-model="downloadRT" :disabled="userProfile.role === 'rt'" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white disabled:bg-slate-100">
           <option value="SEMUA">🌐 Semua RT (RW 01 Lengkap)</option>
           <template x-for="rt in rtList" :key="rt"><option :value="rt" x-text="'Wilayah ' + rt"></option></template>
         </select>
@@ -357,7 +371,7 @@
         </tr>
         <tr>
           <td style="padding: 3px 0;">RW / RT</td>
-          <td style=">:</td>
+          <td>:</td>
           <td style="padding: 3px 0; border-bottom: 1px dotted #666;"><span id="p-rw"></span> / <span id="p-rt"></span></td>
         </tr>
         <tr>
@@ -368,7 +382,7 @@
         <tr>
           <td style="padding: 3px 0;">Nama Ketua RW</td>
           <td>:</td>
-          <td style="padding: 3px 0; border-bottom: 1px dotted #666;" id="p-ketua-rw">DR. H. ABDUL KADIR ABU, Lc. MA.</td>
+          <td style="padding: 3px 0; border-bottom: 1px dotted #666;">DR. H. ABDUL KADIR ABU, Lc. MA.</td>
         </tr>
         <tr>
           <td style="padding: 3px 0;">Tanggal Pengajuan</td>
@@ -508,6 +522,9 @@ function appData() {
         if (s && !was) await this.fetchUserProfileAndData(s.user.id);
         else if (!s) { this.recipients = []; this.userProfile = { role: 'admin', rt: '', nama: '' }; }
       });
+
+      ['searchQuery','filterRT','filterKategori','filterJumat','filterStatus'].forEach(k =>
+        this.$watch(k, () => { this.currentPage = 1; this.selectedIds = []; }));
     },
 
     async fetchUserProfileAndData(userId) {
@@ -516,7 +533,7 @@ function appData() {
         this.userProfile = data;
         if (data.role === 'rt') { this.filterRT = data.rt; this.downloadRT = data.rt; }
       } else {
-        this.userProfile = { role: 'admin', rt: '', nama: 'Admin' };
+        this.userProfile = { role: 'admin', rt: '', nama: 'Pengurus RW' };
       }
       await this.loadData();
     },
@@ -570,10 +587,80 @@ function appData() {
       await sb.from('recipients').update({ status }).in('id', this.selectedIds);
       this.loadData();
     },
+    async batchDelete() {
+      if (!confirm(`Hapus ${this.selectedIds.length} data terpilih?`)) return;
+      await sb.from('recipients').delete().in('id', this.selectedIds);
+      this.selectedIds = [];
+      this.loadData();
+    },
     async deleteItem(id) {
       if (!confirm('Hapus data pengajuan ini?')) return;
       await sb.from('recipients').delete().eq('id', id);
       this.loadData();
+    },
+
+    // FITUR IMPORT / UNGGAH EXCEL (KHUSUS PENGURUS RW / ADMIN)
+    async handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+          if (!json.length) return alert('File Excel kosong.');
+
+          if (!confirm(`Impor ${json.length} data pengajuan ke database?`)) return;
+          this.loading = true;
+          const formattedRows = json.map(row => ({
+            kelurahan: String(row['Kelurahan'] || row['kelurahan'] || 'Kelurahan').trim(),
+            rw: String(row['RW'] || row['rw'] || 'RW 01').trim(),
+            rt: String(row['RT'] || row['rt'] || 'RT 01').trim(),
+            nama_ketua_rt: String(row['Nama Ketua RT'] || row['nama_ketua_rt'] || '').trim(),
+            nama: String(row['Nama'] || row['nama'] || row['Nama Penerima'] || '').trim(),
+            nik: String(row['NIK'] || row['nik'] || '').trim(),
+            tempat_tanggal_lahir: String(row['TTL'] || row['tempat_tanggal_lahir'] || '').trim(),
+            usia: String(row['Usia'] || row['usia'] || '').trim(),
+            jenis_kelamin: String(row['Jenis Kelamin'] || row['jenis_kelamin'] || 'Laki-laki').trim(),
+            alamat_lengkap: String(row['Alamat'] || row['alamat_lengkap'] || '').trim(),
+            kategori: String(row['Kategori'] || row['kategori'] || 'LANSIA').trim(),
+            kategori_lain_jelaskan: String(row['Keterangan Lain'] || row['kategori_lain_jelaskan'] || '').trim(),
+            pekerjaan: String(row['Pekerjaan'] || row['pekerjaan'] || '').trim(),
+            kondisi_penghasilan: String(row['Penghasilan'] || row['kondisi_penghasilan'] || 'Tidak memiliki penghasilan tetap').trim(),
+            nomor_hp: String(row['No HP'] || row['nomor_hp'] || '').trim(),
+            jadwal: String(row['Jadwal'] || row['jadwal'] || 'Jumat 1').trim(),
+            status: String(row['Status'] || row['status'] || 'Belum Diterima').trim(),
+            alasan_pengajuan: String(row['Alasan Pengajuan'] || row['alasan_pengajuan'] || '').trim()
+          })).filter(r => r.nama);
+
+          const { error } = await sb.from('recipients').insert(formattedRows);
+          if (error) throw error;
+          await this.loadData();
+          alert('Berhasil mengimpor data pengajuan!');
+        } catch (err) { alert('Gagal impor: ' + err.message); }
+        finally { this.loading = false; e.target.value = ''; }
+      };
+      reader.readAsArrayBuffer(file);
+    },
+
+    // FITUR RESET DATA (KHUSUS PENGURUS RW / ADMIN)
+    async resetAllData() {
+      if (!confirm('PERINGATAN: Tindakan ini akan menghapus SELURUH data pengajuan di database secara permanen! Lanjutkan?')) return;
+      if (!confirm('Konfirmasi sekali lagi: Yakin ingin mereset seluruh data?')) return;
+
+      this.loading = true;
+      try {
+        const { error } = await sb.from('recipients').delete().neq('id', 0);
+        if (error) throw error;
+        this.recipients = [];
+        this.selectedIds = [];
+        alert('Seluruh data berhasil direset.');
+      } catch (err) {
+        alert('Gagal mereset: ' + err.message);
+      } finally {
+        this.loading = false;
+      }
     },
 
     openAddModal() {
@@ -617,7 +704,10 @@ function appData() {
       }
     },
 
-    openDownloadModal() { this.showDownloadModal = true; },
+    openDownloadModal() { 
+      if (this.userProfile.role === 'rt') this.downloadRT = this.userProfile.rt;
+      this.showDownloadModal = true; 
+    },
 
     exportToExcel() {
       let data = this.recipients;
