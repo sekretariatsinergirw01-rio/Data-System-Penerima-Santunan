@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
-<!-- SheetJS untuk ekspor Excel sesuai template resmi -->
+<!-- SheetJS untuk membaca dan menulis file Excel -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   [x-cloak]{display:none!important}
@@ -48,19 +48,23 @@
       <h1 class="text-xl font-bold tracking-tight mt-0.5">Pendataan Penerima Santunan Jumat Berkah</h1>
     </div>
     <div class="flex flex-wrap gap-2 text-xs font-semibold">
-      <button @click="openAddModal()" class="px-3.5 py-2 bg-white text-emerald-700 hover:bg-emerald-50 rounded-xl shadow-sm transition flex items-center gap-1.5">
+      <button @click="openAddModal()" class="px-3 py-2 bg-white text-emerald-700 hover:bg-emerald-50 rounded-xl shadow-sm transition flex items-center gap-1.5">
         <span>+ Tambah Data</span>
       </button>
-      <button @click="openDownloadModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition flex items-center gap-1.5">
-        <span>📥 Unduh Data (Excel / PDF)</span>
+      <label class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+        <span>📂 Unggah Excel</span>
+        <input type="file" accept=".xlsx, .xls, .csv" @change="handleFileUpload($event)" class="hidden">
+      </label>
+      <button @click="openDownloadModal()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-505 text-white rounded-xl shadow-sm transition flex items-center gap-1.5">
+        <span>📥 Unduh</span>
       </button>
-      <button @click="printReceipts()" class="px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl shadow-sm transition flex items-center gap-1.5">
-        <span>🖨️ Cetak Tanda Terima</span>
+      <button @click="printReceipts()" class="px-3 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl shadow-sm transition flex items-center gap-1.5">
+        <span>🖨️ Cetak</span>
       </button>
-      <button @click="seedDefaultData()" class="px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl shadow-sm transition">
-        Muat Data Awal (200 Data)
+      <button @click="resetAllData()" class="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-sm transition" title="Hapus semua data">
+        ⚠️ Reset Data
       </button>
-      <button @click="logout()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-sm transition">Keluar</button>
+      <button @click="logout()" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-sm transition">Keluar</button>
     </div>
   </div>
 </header>
@@ -203,7 +207,7 @@
           <template x-if="filteredRecipients.length === 0">
             <tr><td colspan="10" class="p-12 text-center text-slate-400">
               <p class="font-medium text-slate-600 text-base">Belum ada data penerima santunan.</p>
-              <p class="text-xs text-slate-400 mt-1">Klik tombol <strong>"Muat Data Awal (200 Data)"</strong> di atas atau tambah data manual.</p>
+              <p class="text-xs text-slate-400 mt-1">Silakan klik tombol <strong>"📂 Unggah Excel"</strong> di atas atau tambah data manual.</p>
             </td></tr>
           </template>
         </tbody>
@@ -229,7 +233,7 @@
   <div class="relative bg-white w-full max-w-md mx-auto my-12 p-6 rounded-2xl shadow-2xl border border-slate-100 space-y-4">
     <div class="flex items-center justify-between border-b border-slate-100 pb-3">
       <h3 class="text-lg font-bold text-slate-800">Pilih Wilayah & Format Unduhan</h3>
-      <button @click="showDownloadModal = false" class="text-slate-400 hover:text-slate-600 font-bold">×</button>
+      <button @click="showDownloadModal = false" class="text-slate-400 hover:text-slate-600 font-bold">&times;</button>
     </div>
     <div class="space-y-3 text-sm">
       <div>
@@ -269,7 +273,7 @@
   <div class="relative bg-white w-full max-w-xl mx-auto my-8 p-6 rounded-2xl shadow-2xl border border-slate-100">
     <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
       <h3 class="text-lg font-bold text-slate-800" x-text="isEdit ? 'Edit Data Penerima' : 'Tambah Penerima Baru'"></h3>
-      <button @click="showModal = false" class="text-slate-400 hover:text-slate-600">×</button>
+      <button @click="showModal = false" class="text-slate-400 hover:text-slate-600">&times;</button>
     </div>
     <form @submit.prevent="saveForm()" class="space-y-4 text-sm">
       <div class="p-3 bg-slate-50 rounded-xl border flex items-center gap-3">
@@ -411,216 +415,12 @@
 </div>
 
 <script>
-// ====== KONFIGURASI SUPABASE NYATA (GANTI DENGAN KREDENSIAL ANDA) ======
+// ====== KONFIGURASI SUPABASE NYATA ======
 const SUPABASE_URL = 'https://swxwkcbmqttwaahzqciv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3eHdrY2JtcXR0d2FhaHpxY2l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2NDA5NzksImV4cCI6MjExMDIxNjk3OX0.dUijw_7wz0BYxI9wu8-LlbiHCxbLWf7ZsLZQqMIdMks';
 const BUCKET = 'santunan';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// Data 200 penerima awal template resmi (hanya dimuat saat tombol "Muat Data Awal" diklik)
-const defaultTemplateData = [
-  {rt:"RT 01",nama:"DAHLIA IDRIS",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 01",nama:"RATNA ASNI MANALU",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 01",nama:"Nona",kategori:"Ketua RT",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 02",nama:"M.MAULUDIN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 02",nama:"SHELVY",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 02",nama:"Selvy",kategori:"Ketua RT",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"ANANG BIN ATJANG",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"DARINA",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"EDDY SOFIAN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"HJ NURLIS",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"MADIN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"MUALIM",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"NURHAYATI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"RACHMAT S",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"ROCHMULYATI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"SAANI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"SAWI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"SUPARDI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"WAGIYEM",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 03",nama:"WANDA",kategori:"Ketua RT",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"ARMI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"DADANG SYAMSYU RIZAL",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"DEDE RAHMAN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"DODI WAHYU",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"ENNY DAYANTI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"HANY GIRINATA",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"KOMARIYAH",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"MINAH",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"MOH NIZAM",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"RINI GURAJATI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"SUKAENI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"SUTARMI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"SUTARSIH",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 04",nama:"DESI PASHA",kategori:"Ketua RT",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"ACHMAD SUMARDI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"ALI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"ALI HAMBALI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"DJUNAH",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"INDRA SOPYAN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"MAHYANI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"MARYATI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"MOH.RIDWAN",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"NANANG ALFARES",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"NANI HELYYANI",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"NUR HASANAH",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"NURUL HILAL",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"NURYANI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"SONY BOY",kategori:"LANSIA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"TINI MARTINI",kategori:"JANDA",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 06",nama:"WAHYU SANJAYA",kategori:"Ketua RT",jadwal:"Jumat 1",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"ACHMAD ARIFIN",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"AMINAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"ERA SUHANA",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"HARUN EFFENDI",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"KOMARIAH ARSYAD",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"MALANA BIN M.DJAENI",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"MALIJAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"MARYANI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"MUHAMMAD SUBLI",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"NURHAYATI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"NURMALINAH",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"SAIDAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"SALBIYAH",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"SUGIAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"SUKARTINAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"SUTINI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"TRIHATI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"WIDYA NEZAR",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 07",nama:"ANDI MARTIN",kategori:"Ketua RT",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 08",nama:"CHOLIDAH",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 08",nama:"HARNIL BAHRONY",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 08",nama:"INTUR.S",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 08",nama:"LAILAWATI",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 08",nama:"MAEMUNAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 08",nama:"MARTUNAS",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 08",nama:"MARWADI YAHYA",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 08",nama:"RIZAL SUHERMAN",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 08",nama:"SULASTRI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 08",nama:"YANTI ROHATI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 08",nama:"FAHRUL",kategori:"Ketua RT",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"ABDULLAH YUSUF",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"ANWAR LOUTHVY",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"ELVIS",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"HAMIDAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"HASIPAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"KIRMAN",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"M.SIRAD",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"MASROFAH MARZUKI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"MASTURI ROS YUSUF",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"MULYATI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"NURAINI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"ROYKE HARYANTO",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"SURYANTI",kategori:"LANSIA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 09",nama:"MT HARYONO",kategori:"Ketua RT",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"DJUMADI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"LILIS",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"MARIYATI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"NURAINI",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"NURYANAH",kategori:"JANDA",jadwal:"Jumat 2",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"ACHMAD ADE BERDOYONO",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"BAMABANG SADIKIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"IRIANTI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"NENEG PRIHATIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"SUDIRMAN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"TUMINI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"YAYAH",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 10",nama:"RAHMAT JAYA",kategori:"Ketua RT",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"A.NURDJANAH",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"ACHMAD DJAINI.S",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"FARIDAH",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"HANAFI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"MAMAT ROHMAT",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"MASNUN",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"MUCHTAR",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"MUHAMAD YASIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"MURNI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"NURLENAH",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"NURSINIH BT WALIM",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"RAHMAWATI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"ROSITA ABD RAHMAN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"TAUFIK R.A KONTU",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 11",nama:"M IDRUS",kategori:"Ketua RT",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"ATIKAH",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"EDI YUSUF",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"ENDA",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"ERPIANTO",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"HANAPI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"HARNILA",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"HOLILAH",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"M.HUSNY",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"M.RASID",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"MADSANI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"MUHAMAD RUSDIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"MUHAMAD SAID",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"MUHAYAR",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"MULYADI",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"MULYATINI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"SITI MULYANI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"SUMIYATI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"SUPARTI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"SYAMSUDIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 12",nama:"DEDI SUPRIATNA",kategori:"Ketua RT",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"ABDUL MADJID",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"IDA FITRIA",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"MARIYUN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"MARKUS JAINUDDIN",kategori:"LANSIA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"TUTI HARTATI",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"ZAENABUN",kategori:"JANDA",jadwal:"Jumat 3",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"RAMITA",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"SURYATI SALEH",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"SYAHRUL",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"USMAN",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"YATI SUMIYATI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 13",nama:"SAEPUDIN",kategori:"Ketua RT",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"ACHMAD YANI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"AMIRUDDIN",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"ANAH RUM",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"APPANDI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"ARMAWATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"BETTY SUMIATI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"ENDANG SUMARNA",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"HARUN",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"HOLILAH",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"IIT LISNAWATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"MADINAHTUL MUSYAROFAH",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"MUHAMAD TABRANI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"MUHAMAD YUSUF",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"NOVRIDAWATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"NUR SUDARYANA",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"ROHITA",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"SUMARNI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"SUMARNI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"SYAFEÍ",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"TADJUDIN",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"TOTONG BIN SAHI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"TUTI HERAWATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"ZAENAL ABIDIN",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 14",nama:"HARIS",kategori:"Ketua RT",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 15",nama:"DARYANI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 15",nama:"MARDJUKI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 15",nama:"NENENG",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 15",nama:"SITI SURYANI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 15",nama:"SRIATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 15",nama:"SUAIB",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 15",nama:"SUWANDI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 15",nama:"URIPAH",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 15",nama:"NANDANG KOMARUDIN",kategori:"Ketua RT",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"AHMAD SOBARI",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"ANI MULYANI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"EMY FARIDAH",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"FIRMAN RAIS",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"LILIS SRI MULYATI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"LINAH ALI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"MUJENAH",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"NIRMALA",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"NURAINI",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"STI RAHAYU",kategori:"JANDA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"YANTO",kategori:"LANSIA",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RT 16",nama:"ALLAN",kategori:"Ketua RT",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""},
-  {rt:"RW 01",nama:"DR.H ABDUL KADIR ABU,Lc MA.",kategori:"Ketua RW",jadwal:"Jumat 4",status:"Belum Diterima",keterangan:""}
-];
 
 function compressImage(file) {
   if (!file.type.startsWith('image/')) return Promise.resolve(file);
@@ -742,6 +542,79 @@ function appData() {
       this.recipients = this.recipients.filter(r => r.id !== id); this.selectedIds = this.selectedIds.filter(i => i !== id);
     },
 
+    // FITUR UPLOAD FILE EXCEL / CSV MANUAL
+    async handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (typeof XLSX === 'undefined') {
+        alert('Pustaka SheetJS belum dimuat.');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const json = XLSX.utils.sheet_to_json(sheet);
+
+          if (!json.length) {
+            alert('File Excel kosong atau format tidak sesuai.');
+            return;
+          }
+
+          if (!confirm(`Ditemukan ${json.length} baris data dari file. Ingin mengunggahnya ke database?`)) {
+            e.target.value = '';
+            return;
+          }
+
+          this.loading = true;
+          const formattedRows = json.map(row => ({
+            rt: String(row['RT'] || row['rt'] || 'RT 01').trim(),
+            nama: String(row['Nama'] || row['nama'] || row['Nama Penerima'] || '').trim(),
+            kategori: String(row['Kategori'] || row['kategori'] || 'LANSIA').trim(),
+            jadwal: String(row['Jadwal'] || row['jadwal'] || (row['Jumat Ke-'] ? 'Jumat ' + row['Jumat Ke-'] : 'Jumat 1')).trim(),
+            status: String(row['Status'] || row['status'] || 'Belum Diterima').trim(),
+            keterangan: String(row['Keterangan'] || row['keterangan'] || '').trim()
+          })).filter(r => r.nama);
+
+          const { error } = await sb.from('recipients').insert(formattedRows);
+          if (error) throw error;
+
+          await this.loadData();
+          alert(`Berhasil mengunggah ${formattedRows.length} data ke database!`);
+        } catch (err) {
+          alert('Gagal memproses file: ' + err.message);
+        } finally {
+          this.loading = false;
+          e.target.value = '';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    },
+
+    // FITUR RESET / HAPUS SELURUH DATA
+    async resetAllData() {
+      if (!confirm('PERINGATAN: Tindakan ini akan menghapus SELURUH data penerima dan dokumen di database secara permanen! Lanjutkan?')) return;
+      if (!confirm('Konfirmasi sekali lagi: Yakin ingin mereset seluruh data?')) return;
+
+      this.loading = true;
+      try {
+        await this.removeFromStorage(this.recipients);
+        const { error } = await sb.from('recipients').delete().neq('id', 0); // Hapus semua baris
+        if (error) throw error;
+        this.recipients = [];
+        this.selectedIds = [];
+        alert('Seluruh data berhasil direset.');
+      } catch (err) {
+        alert('Gagal mereset data: ' + err.message);
+      } finally {
+        this.loading = false;
+      }
+    },
+
     openAddModal() {
       this.isEdit = false;
       this.formData = { id: null, nama: '', rt: 'RT 01', kategori: 'LANSIA', jadwal: 'Jumat 1', status: 'Belum Diterima', keterangan: '', foto: '', foto_path: null, _fotoFile: null, dokumen: [], _removedDocs: [] };
@@ -808,15 +681,6 @@ function appData() {
         this.showModal = false; await this.loadData();
       } catch (e) { alert('Gagal menyimpan: ' + e.message); }
       this.saving = false;
-    },
-
-    async seedDefaultData() {
-      if (this.recipients.length && !confirm('Data sudah ada. Ingin menambahkan 200 data awal template resmi?')) return;
-      const rows = defaultTemplateData.map(r => ({ ...r }));
-      const { error } = await sb.from('recipients').insert(rows);
-      if (error) return alert('Gagal memuat data awal: ' + error.message);
-      await this.loadData();
-      alert('Berhasil memuat 200 data awal Yayasan Amsakah RW 01!');
     },
 
     openDownloadModal() {
