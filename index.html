@@ -48,6 +48,7 @@
       <h1 class="text-xl font-bold tracking-tight mt-0.5">Pengajuan & Data Master Santunan Jumat Mubarak</h1>
     </div>
     <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
+      
       <!-- ZOOM CONTROLS -->
       <div class="flex items-center bg-emerald-800 rounded-xl p-1 gap-1 border border-emerald-600">
         <button @click="zoomOut()" class="px-2 py-1 hover:bg-emerald-700 rounded-lg text-white font-bold" title="Zoom Out">🔍-</button>
@@ -56,12 +57,19 @@
       </div>
 
       <button @click="openAddModal()" class="px-3 py-2 bg-white text-emerald-700 hover:bg-emerald-50 rounded-xl shadow-sm transition flex items-center gap-1 font-bold">
-        <span>+ Buat Pengajuan</span>
+        <span>+ Entri Baru</span>
       </button>
 
-      <label x-show="userProfile.role === 'admin'" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition flex items-center gap-1 cursor-pointer">
-        <span>📂 Import Excel</span>
-        <input type="file" accept=".xlsx, .xls, .csv" @change="handleFileUpload($event)" class="hidden">
+      <!-- TOMBOL IMPORT 1: UNTUK PENGAJUAN BARU -->
+      <label x-show="userProfile.role === 'admin'" class="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl shadow-sm transition flex items-center gap-1 cursor-pointer" title="Import Data Pengajuan (Perlu Verifikasi)">
+        <span>📥 Import Pengajuan</span>
+        <input type="file" accept=".xlsx, .xls, .csv" @change="handleFileUpload($event, false)" class="hidden">
+      </label>
+
+      <!-- TOMBOL IMPORT 2: UNTUK DATA MASTER TERBARU -->
+      <label x-show="userProfile.role === 'admin'" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition flex items-center gap-1 cursor-pointer" title="Import Data Master (Langsung Diterima)">
+        <span>📂 Import Data Master</span>
+        <input type="file" accept=".xlsx, .xls, .csv" @change="handleFileUpload($event, true)" class="hidden">
       </label>
 
       <button @click="openDownloadModal()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-sm transition">
@@ -79,24 +87,26 @@
 
 <main class="max-w-7xl mx-auto px-4 py-6 space-y-6 no-print">
 
-  <!-- TAB NAVIGASI (PENGUATAN PEMISAHAN ALUR) -->
+  <!-- TAB NAVIGASI PEMISAHAN ALUR -->
   <div class="flex border-b border-slate-200 gap-4">
-    <button @click="activeTab = 'pengajuan'" class="pb-3 px-2 font-bold text-sm border-b-2 transition" :class="activeTab === 'pengajuan' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'">
-      📥 Data Pengajuan RT (<span x-text="pengajuanList.length"></span>)
+    <button @click="activeTab = 'pengajuan'" class="pb-3 px-3 font-bold text-sm border-b-2 transition flex items-center gap-2" :class="activeTab === 'pengajuan' ? 'border-amber-600 text-amber-700' : 'border-transparent text-slate-500 hover:text-slate-700'">
+      <span>📥 Data Pengajuan RT (Perlu Verifikasi)</span>
+      <span class="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800" x-text="pengajuanList.length"></span>
     </button>
-    <button @click="activeTab = 'master'" class="pb-3 px-2 font-bold text-sm border-b-2 transition" :class="activeTab === 'master' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'">
-      ⭐ Data Master Penerima Aktif (<span x-text="masterList.length"></span>)
+    <button @click="activeTab = 'master'" class="pb-3 px-3 font-bold text-sm border-b-2 transition flex items-center gap-2" :class="activeTab === 'master' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'">
+      <span>⭐ Data Master Penerima Aktif</span>
+      <span class="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-800" x-text="masterList.length"></span>
     </button>
   </div>
 
   <!-- STATISTIK -->
   <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
     <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
-      <p class="text-xs font-medium text-slate-500" x-text="activeTab === 'pengajuan' ? 'Total Pengajuan Masuk' : 'Total Data Master'"></p>
+      <p class="text-xs font-medium text-slate-500" x-text="activeTab === 'pengajuan' ? 'Total Pengajuan Masuk' : 'Total Penerima Master'"></p>
       <p class="text-2xl font-bold text-slate-900 mt-1" x-text="activeTab === 'pengajuan' ? pengajuanList.length : masterList.length"></p>
     </div>
     <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
-      <p class="text-xs font-medium text-slate-500">Disetujui / Diterima</p>
+      <p class="text-xs font-medium text-slate-500">Status Diterima</p>
       <p class="text-2xl font-bold text-emerald-700 mt-1" x-text="stats.diterima + ' (' + getPercentage(stats.diterima) + '%)'"></p>
     </div>
     <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
@@ -135,7 +145,7 @@
       <div>Menampilkan <strong class="text-slate-800" x-text="filteredRecipients.length"></strong> data <span x-show="loading">(memuat...)</span></div>
       <div class="flex items-center space-x-2" x-show="selectedIds.length > 0">
         <span class="font-semibold text-emerald-700" x-text="selectedIds.length + ' terpilih'"></span>
-        <button x-show="activeTab === 'pengajuan'" @click="batchMoveToMaster()" class="px-2.5 py-1 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition">Pindahkan ke Master</button>
+        <button x-show="activeTab === 'pengajuan'" @click="batchMoveToMaster()" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition">Setujui & Pindah ke Master</button>
         <button @click="batchDelete()" class="px-2.5 py-1 bg-rose-600 text-white rounded-lg font-medium hover:bg-rose-700 transition">Hapus Terpilih</button>
       </div>
     </div>
@@ -152,7 +162,7 @@
             <th class="p-3.5">Warga (Foto, NIK & Nama)</th>
             <th class="p-3.5">Wilayah</th>
             <th class="p-3.5">Kategori</th>
-            <th class="p-3.5">Penghasilan</th>
+            <th class="p-3.5">Usia</th>
             <th class="p-3.5">Status</th>
             <th class="p-3.5 text-center">Aksi & Formulir</th>
           </tr>
@@ -176,7 +186,7 @@
               </td>
               <td class="p-3.5"><span class="px-2.5 py-1 rounded-lg text-xs bg-slate-100 font-semibold text-slate-700" x-text="item.rt"></span></td>
               <td class="p-3.5"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800" x-text="item.kategori"></span></td>
-              <td class="p-3.5 text-xs text-slate-600" x-text="item.kondisi_penghasilan || '-'"></td>
+              <td class="p-3.5 text-xs text-slate-600" x-text="(item.usia || '-') + ' Thn'"></td>
               <td class="p-3.5">
                 <button @click="toggleStatus(item)" class="px-3 py-1 rounded-full text-xs font-semibold shadow-sm transition"
                   :class="item.status === 'Sudah Diterima' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
@@ -187,7 +197,7 @@
                 <button @click="openDetailModal(item)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium">Detail</button>
                 <button @click="openEditModal(item)" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-medium">Edit</button>
                 <button @click="printOfficialForm(item)" class="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-sm">📄 Cetak Form</button>
-                <button x-show="activeTab === 'pengajuan'" @click="moveToMaster(item)" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-sm">⭐ Setujui/Master</button>
+                <button x-show="activeTab === 'pengajuan'" @click="moveToMaster(item)" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-sm" title="Setujui dan masukkan otomatis ke Data Master RT ini">⭐ Setujui</button>
                 <button @click="deleteItem(item.id)" class="px-2.5 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-medium">Hapus</button>
               </td>
             </tr>
@@ -195,7 +205,7 @@
           <template x-if="filteredRecipients.length === 0">
             <tr><td colspan="8" class="p-12 text-center text-slate-400">
               <p class="font-medium text-slate-600 text-base">Tidak ada data ditemukan.</p>
-              <p class="text-xs text-slate-400 mt-1">Gunakan tombol "+ Buat Pengajuan" untuk entri data baru.</p>
+              <p class="text-xs text-slate-400 mt-1">Gunakan tombol "+ Entri Baru" atau menu Import di atas.</p>
             </td></tr>
           </template>
         </tbody>
@@ -216,18 +226,16 @@
 <!-- MODAL FORMULIR & PROFIL WARGA -->
 <div x-show="showModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto no-print p-4 flex items-center justify-center">
   <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="showModal = false"></div>
-  <div class="relative bg-white w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-2xl border border-slate-100 space-y-6">
-    <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+  <div class="relative bg-white w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-2xl border space-y-6">
+    <div class="flex items-center justify-between border-b pb-3">
       <div>
         <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">FORMULIR & PROFIL WARGA</span>
-        <h3 class="text-lg font-bold text-slate-900 mt-0.5" x-text="isEdit ? 'Edit Data Warga & Pengajuan' : 'Formulir Pengajuan Baru'"></h3>
+        <h3 class="text-lg font-bold text-slate-900 mt-0.5" x-text="isEdit ? 'Edit Data Warga' : (formData.is_master ? 'Entri Data Master Baru' : 'Formulir Pengajuan Baru')"></h3>
       </div>
-      <button @click="showModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+      <button @click="showModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
     </div>
 
     <form @submit.prevent="saveForm()" class="space-y-6 text-sm">
-      
-      <!-- FOTO PROFIL & DOKUMEN PENDUKUNG -->
       <div class="p-4 bg-slate-50 rounded-xl border space-y-3">
         <h4 class="font-bold text-emerald-900 text-xs uppercase tracking-wider">Foto Profil & Dokumen Pendukung (KTP/KK)</h4>
         <div class="grid sm:grid-cols-2 gap-4">
@@ -241,7 +249,7 @@
             </div>
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1">Upload Dokumen KTP/KK (Multiple)</label>
+            <label class="block text-xs font-semibold mb-1">Upload Dokumen KTP/KK</label>
             <input type="file" multiple accept="image/*,application/pdf" @change="handleDocUpload($event)" class="text-xs">
           </div>
         </div>
@@ -249,14 +257,13 @@
           <template x-for="(doc, idx) in formData.dokumen" :key="idx">
             <div class="flex items-center justify-between p-2 rounded-lg bg-white border text-xs gap-2">
               <span class="truncate font-medium text-slate-700 max-w-[150px]" x-text="doc.nama"></span>
-              <button type="button" @click="removeDoc(idx)" class="text-rose-600 font-bold">×</button>
+              <button type="button" @click="removeDoc(idx)" class="text-rose-600 font-bold">&times;</button>
             </div>
           </template>
         </div>
       </div>
 
-      <!-- A. IDENTITAS WILAYAH -->
-      <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+      <div class="space-y-3 bg-slate-50 p-4 rounded-xl border">
         <h4 class="font-bold text-emerald-900 text-xs uppercase tracking-wider">A. Identitas Wilayah</h4>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div><label class="block text-xs font-semibold mb-1">Kelurahan</label><input type="text" x-model="formData.kelurahan" required class="w-full px-3 py-2 rounded-lg border bg-white"></div>
@@ -273,23 +280,48 @@
         </div>
       </div>
 
-      <!-- B. DATA CALON PENERIMA -->
-      <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+      <div class="space-y-3 bg-slate-50 p-4 rounded-xl border">
         <h4 class="font-bold text-emerald-900 text-xs uppercase tracking-wider">B. Data Calon Penerima</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="sm:col-span-2"><label class="block text-xs font-semibold mb-1">1. Nama Lengkap</label><input type="text" x-model="formData.nama" required class="w-full px-3 py-2 rounded-lg border bg-white"></div>
           <div><label class="block text-xs font-semibold mb-1">2. NIK</label><input type="text" x-model="formData.nik" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
-          <div><label class="block text-xs font-semibold mb-1">3. Tempat, Tanggal Lahir</label><input type="text" x-model="formData.tempat_tanggal_lahir" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
-          <div><label class="block text-xs font-semibold mb-1">4. Usia (Tahun)</label><input type="text" x-model="formData.usia" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
+          
+          <!-- TANGGAL LAHIR (OTOMATIS HITUNG USIA & VALIDASI 60 THN + 1 HARI) -->
+          <div>
+            <label class="block text-xs font-semibold mb-1">3. Tanggal Lahir (Format: YYYY-MM-DD atau DD-MM-YYYY)</label>
+            <input type="date" x-model="formData.tanggal_lahir" @change="calculateAgeAndValidate()" class="w-full px-3 py-2 rounded-lg border bg-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">4. Usia Otomatis (Tahun)</label>
+            <input type="text" x-model="formData.usia" readonly class="w-full px-3 py-2 rounded-lg border bg-slate-100 font-bold text-emerald-800" placeholder="Terhitung otomatis">
+          </div>
+
+          <!-- JENIS KELAMIN & KATEGORI OTOMATIS -->
           <div>
             <label class="block text-xs font-semibold mb-1">5. Jenis Kelamin</label>
-            <select x-model="formData.jenis_kelamin" class="w-full px-3 py-2 rounded-lg border bg-white"><option value="Laki-laki">Laki-laki</option><option value="Perempuan">Perempuan</option></select>
+            <select x-model="formData.jenis_kelamin" @change="handleGenderChange()" class="w-full px-3 py-2 rounded-lg border bg-white">
+              <option value="Laki-laki">Laki-laki</option>
+              <option value="Perempuan">Perempuan</option>
+            </select>
           </div>
-          <div class="sm:col-span-2"><label class="block text-xs font-semibold mb-1">6. Alamat Lengkap</label><textarea x-model="formData.alamat_lengkap" rows="2" class="w-full px-3 py-2 rounded-lg border bg-white"></textarea></div>
           <div>
             <label class="block text-xs font-semibold mb-1">7. Kategori</label>
-            <select x-model="formData.kategori" class="w-full px-3 py-2 rounded-lg border bg-white"><option value="LANSIA">Lansia</option><option value="JANDA">Janda</option><option value="Lain-lain">Lain-lain</option></select>
+            <select x-model="formData.kategori" :disabled="formData.jenis_kelamin === 'Laki-laki'" class="w-full px-3 py-2 rounded-lg border bg-white disabled:bg-slate-100">
+              <template x-if="formData.jenis_kelamin === 'Laki-laki'">
+                <option value="LANSIA">LANSIA</option>
+              </template>
+              <template x-if="formData.jenis_kelamin === 'Perempuan'">
+                <optgroup label="Pilih Kategori Wanita">
+                  <option value="LANSIA">LANSIA</option>
+                  <option value="JANDA">JANDA</option>
+                  <option value="Lain-lain">Lain-lain</option>
+                </optgroup>
+              </template>
+            </select>
           </div>
+
+          <div class="sm:col-span-2"><label class="block text-xs font-semibold mb-1">6. Alamat Lengkap (Wajib RW 01)</label><textarea x-model="formData.alamat_lengkap" rows="2" class="w-full px-3 py-2 rounded-lg border bg-white"></textarea></div>
+          
           <div><label class="block text-xs font-semibold mb-1">8. Jika Lain-lain (Jelaskan)</label><input type="text" x-model="formData.kategori_lain_jelaskan" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
           <div><label class="block text-xs font-semibold mb-1">9. Pekerjaan</label><input type="text" x-model="formData.pekerjaan" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
           <div>
@@ -306,14 +338,13 @@
             <select x-model="formData.jadwal" class="w-full px-3 py-2 rounded-lg border bg-white"><option>Jumat 1</option><option>Jumat 2</option><option>Jumat 3</option><option>Jumat 4</option></select>
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1">Status Pengajuan / Master</label>
+            <label class="block text-xs font-semibold mb-1">Status Penyaluran</label>
             <select x-model="formData.status" class="w-full px-3 py-2 rounded-lg border bg-white"><option>Belum Diterima</option><option>Sudah Diterima</option></select>
           </div>
         </div>
       </div>
 
-      <!-- C. ALASAN PENGAJUAN -->
-      <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+      <div class="space-y-3 bg-slate-50 p-4 rounded-xl border">
         <h4 class="font-bold text-emerald-900 text-xs uppercase tracking-wider">C. Alasan Pengajuan</h4>
         <textarea x-model="formData.alasan_pengajuan" rows="3" class="w-full px-3 py-2 rounded-lg border bg-white" placeholder="Tuliskan alasan..."></textarea>
       </div>
@@ -326,7 +357,7 @@
   </div>
 </div>
 
-<!-- MODAL DETAIL WARGA & DOKUMEN -->
+<!-- MODAL DETAIL -->
 <div x-show="showDetailModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto no-print p-4 flex items-center justify-center">
   <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="showDetailModal = false"></div>
   <div class="relative bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-2xl border space-y-4" x-show="detailItem">
@@ -338,7 +369,7 @@
           </div>
           <div>
             <h2 class="text-xl font-bold text-slate-900" x-text="detailItem.nama"></h2>
-            <p class="text-xs text-slate-500 mt-0.5"><span x-text="detailItem.rt"></span> | NIK: <span x-text="detailItem.nik || '-'"></span> | <strong class="text-emerald-700" x-text="detailItem.status"></strong></p>
+            <p class="text-xs text-slate-500 mt-0.5"><span x-text="detailItem.rt"></span> | NIK: <span x-text="detailItem.nik || '-'"></span> | Usia: <span x-text="detailItem.usia"></span> Thn | <strong class="text-emerald-700" x-text="detailItem.status"></strong></p>
             <p class="text-xs text-slate-500 mt-1" x-text="detailItem.alasan_pengajuan ? 'Alasan: ' + detailItem.alasan_pengajuan : ''"></p>
           </div>
         </div>
@@ -369,8 +400,8 @@
   <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="showDownloadModal = false"></div>
   <div class="relative bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl border space-y-4">
     <div class="flex items-center justify-between border-b pb-3">
-      <h3 class="text-lg font-bold text-slate-800">Unduh Rekapitulasi Excel</h3>
-      <button @click="showDownloadModal = false" class="text-slate-400 font-bold">×</button>
+      <h3 class="text-lg font-bold text-slate-800" x-text="'Unduh Rekap ' + (activeTab === 'pengajuan' ? 'Pengajuan' : 'Data Master')"></h3>
+      <button @click="showDownloadModal = false" class="text-slate-400 font-bold">&times;</button>
     </div>
     <div class="space-y-3 text-sm">
       <div>
@@ -390,7 +421,7 @@
   </div>
 </div>
 
-<!-- TEMPLATE CETAK PDF FORMULIR RESMI -->
+<!-- TEMPLATE CETAK PDF FORMULIR -->
 <div id="form-print-area">
   <div style="font-family: Arial, sans-serif; padding: 25px; max-width: 800px; margin: 0 auto; color: #000; font-size: 12px; line-height: 1.4;">
     <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
@@ -476,7 +507,7 @@ function appData() {
     session: null, email: '', password: '', loading: false, saving: false,
     userProfile: { role: 'admin', rt: '', nama: '' },
     zoomLevel: 1.0,
-    activeTab: 'pengajuan', // 'pengajuan' atau 'master'
+    activeTab: 'pengajuan',
     recipients: [], searchQuery: '', filterRT: '', filterKategori: '', filterJumat: '', filterStatus: '',
     selectedIds: [], currentPage: 1, pageSize: 15,
     showModal: false, showDetailModal: false, showDownloadModal: false, detailItem: null, isEdit: false,
@@ -484,7 +515,7 @@ function appData() {
     formData: { 
       id: null, kelurahan: 'Kelurahan', rw: 'RW 01', rt: 'RT 01', 
       nama_ketua_rt: '', nama_ketua_rw: 'DR. H. ABDUL KADIR ABU, Lc. MA.', tanggal_pengajuan: '',
-      nama: '', nik: '', tempat_tanggal_lahir: '', usia: '', jenis_kelamin: 'Laki-laki',
+      nama: '', nik: '', tanggal_lahir: '', usia: '', jenis_kelamin: 'Laki-laki',
       alamat_lengkap: '', kategori: 'LANSIA', kategori_lain_jelaskan: '', pekerjaan: '',
       kondisi_penghasilan: 'Tidak memiliki penghasilan tetap', nomor_hp: '', jadwal: 'Jumat 1',
       status: 'Belum Diterima', alasan_pengajuan: '', is_master: false,
@@ -573,6 +604,35 @@ function appData() {
       this.selectedIds = e.target.checked ? [...new Set([...this.selectedIds, ...ids])] : this.selectedIds.filter(id => !ids.includes(id));
     },
 
+    // OTOMATIS HITUNG USIA & VALIDASI MINIMAL 60 TAHUN + 1 HARI
+    calculateAgeAndValidate() {
+      if (!this.formData.tanggal_lahir) return;
+      const dob = new Date(this.formData.tanggal_lahir);
+      const today = new Date();
+      
+      // Target usia minimal 60 tahun + 1 hari yang lalu
+      const targetDate = new Date(today.getFullYear() - 60, today.getMonth(), today.getDate() - 1);
+
+      let diffTime = today - dob;
+      let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      let ageYears = Math.floor(diffDays / 365.25);
+
+      this.formData.usia = ageYears;
+
+      // Validasi syarat minimal 60 tahun + 1 hari
+      if (dob > targetDate) {
+        alert("Data penerima tidak cukup syarat karena syaratnya adalah ber-KTP di wilayah RW 01 dan berumur minimal 60 tahun + 1 hari!");
+        this.formData.tanggal_lahir = '';
+        this.formData.usia = '';
+      }
+    },
+
+    handleGenderChange() {
+      if (this.formData.jenis_kelamin === 'Laki-laki') {
+        this.formData.kategori = 'LANSIA';
+      }
+    },
+
     async toggleStatus(item) {
       const old = item.status; item.status = old === 'Sudah Diterima' ? 'Belum Diterima' : 'Sudah Diterima';
       await sb.from('recipients').update({ status: item.status }).eq('id', item.id);
@@ -580,13 +640,14 @@ function appData() {
 
     async moveToMaster(item) {
       item.is_master = true;
-      await sb.from('recipients').update({ is_master: true }).eq('id', item.id);
-      alert('Data berhasil disetujui dan dipindahkan ke Data Master Penerima!');
+      item.status = 'Sudah Diterima';
+      await sb.from('recipients').update({ is_master: true, status: 'Sudah Diterima' }).eq('id', item.id);
+      alert('Data pengajuan disetujui dan otomatis masuk ke Data Master RT ' + item.rt + '!');
     },
 
     async batchMoveToMaster() {
-      if (!confirm(`Pindahkan ${this.selectedIds.length} data ke Data Master?`)) return;
-      await sb.from('recipients').update({ is_master: true }).in('id', this.selectedIds);
+      if (!confirm(`Setujui dan pindahkan ${this.selectedIds.length} data ke Data Master?`)) return;
+      await sb.from('recipients').update({ is_master: true, status: 'Sudah Diterima' }).in('id', this.selectedIds);
       this.selectedIds = [];
       await this.loadData();
     },
@@ -604,7 +665,7 @@ function appData() {
       await this.loadData();
     },
 
-    async handleFileUpload(e) {
+    async handleFileUpload(e, isMaster) {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
@@ -615,8 +676,10 @@ function appData() {
           const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
           if (!json.length) return alert('File Excel kosong.');
 
-          if (!confirm(`Impor ${json.length} data pengajuan ke database?`)) return;
+          const labelTarget = isMaster ? 'Data Master (Sudah Diterima)' : 'Data Pengajuan Baru';
+          if (!confirm(`Impor ${json.length} data ke ${labelTarget}?`)) return;
           this.loading = true;
+
           const formattedRows = json.map(row => ({
             kelurahan: String(row['Kelurahan'] || 'Kelurahan').trim(),
             rw: String(row['RW'] || 'RW 01').trim(),
@@ -634,15 +697,15 @@ function appData() {
             kondisi_penghasilan: String(row['Penghasilan'] || 'Tidak memiliki penghasilan tetap').trim(),
             nomor_hp: String(row['No HP'] || '').trim(),
             jadwal: String(row['Jadwal'] || 'Jumat 1').trim(),
-            status: String(row['Status'] || 'Belum Diterima').trim(),
+            status: isMaster ? 'Sudah Diterima' : String(row['Status'] || 'Belum Diterima').trim(),
             alasan_pengajuan: String(row['Alasan Pengajuan'] || '').trim(),
-            is_master: false
+            is_master: isMaster
           })).filter(r => r.nama);
 
           const { error } = await sb.from('recipients').insert(formattedRows);
           if (error) throw error;
           await this.loadData();
-          alert('Berhasil mengimpor data pengajuan!');
+          alert(`Berhasil mengimpor data ke ${labelTarget}!`);
         } catch (err) { alert('Gagal impor: ' + err.message); }
         finally { this.loading = false; e.target.value = ''; }
       };
@@ -666,10 +729,11 @@ function appData() {
       this.formData = { 
         id: null, kelurahan: 'Kelurahan', rw: 'RW 01', rt: defaultRT, 
         nama_ketua_rt: '', nama_ketua_rw: 'DR. H. ABDUL KADIR ABU, Lc. MA.', tanggal_pengajuan: new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}),
-        nama: '', nik: '', tempat_tanggal_lahir: '', usia: '', jenis_kelamin: 'Laki-laki',
+        nama: '', nik: '', tanggal_lahir: '', usia: '', jenis_kelamin: 'Laki-laki',
         alamat_lengkap: '', kategori: 'LANSIA', kategori_lain_jelaskan: '', pekerjaan: '',
         kondisi_penghasilan: 'Tidak memiliki penghasilan tetap', nomor_hp: '', jadwal: 'Jumat 1',
-        status: 'Belum Diterima', alasan_pengajuan: '', is_master: this.activeTab === 'master',
+        status: this.activeTab === 'master' ? 'Sudah Diterima' : 'Belum Diterima', 
+        alasan_pengajuan: '', is_master: this.activeTab === 'master',
         foto: '', foto_path: null, _fotoFile: null, dokumen: [], _removedDocs: []
       };
       this.showModal = true;
@@ -715,7 +779,7 @@ function appData() {
         const payload = {
           kelurahan: f.kelurahan, rw: f.rw, rt: f.rt, nama_ketua_rt: f.nama_ketua_rt,
           nama_ketua_rw: f.nama_ketua_rw, tanggal_pengajuan: f.tanggal_pengajuan,
-          nama: f.nama.trim(), nik: f.nik, tempat_tanggal_lahir: f.tempat_tanggal_lahir,
+          nama: f.nama.trim(), nik: f.nik, tempat_tanggal_lahir: f.tanggal_lahir,
           usia: f.usia, jenis_kelamin: f.jenis_kelamin, alamat_lengkap: f.alamat_lengkap,
           kategori: f.kategori, kategori_lain_jelaskan: f.kategori_lain_jelaskan,
           pekerjaan: f.pekerjaan, kondisi_penghasilan: f.kondisi_penghasilan,
