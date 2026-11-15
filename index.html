@@ -21,20 +21,52 @@
 </head>
 <body class="bg-slate-50 text-slate-800 transition-transform duration-200 origin-top" :style="'transform: scale(' + zoomLevel + ');'" x-data="appData()" x-init="initApp()">
 
-<!-- LOGIN MODAL -->
+<!-- LOGIN & REGISTER MODAL -->
 <div x-show="!session" x-cloak class="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-  <form @submit.prevent="login()" class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm space-y-4 border border-slate-100">
+  <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm space-y-4 border border-slate-100">
     <div class="text-center space-y-1">
       <div class="w-20 h-12 bg-emerald-100 text-emerald-700 rounded-2xl mx-auto flex items-center justify-center font-bold text-xl mb-2">RW.01</div>
-      <h2 class="text-lg font-bold text-slate-900">Login Sistem Pengurus</h2>
+      <h2 class="text-lg font-bold text-slate-900" x-text="isRegisterMode ? 'Daftar Akun Baru' : 'Login Sistem Pengurus'"></h2>
       <p class="text-xs text-slate-500">Yayasan Amsakah - RW.01</p>
     </div>
-    <div class="space-y-3">
+
+    <!-- FORM LOGIN -->
+    <form x-show="!isRegisterMode" @submit.prevent="login()" class="space-y-3">
       <input type="email" x-model="email" required placeholder="Email Pengurus / Ketua RT" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
       <input type="password" x-model="password" required placeholder="Password" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
       <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-emerald-600/20">Masuk Sistem</button>
-    </div>
-  </form>
+      <div class="text-center pt-2">
+        <button type="button" @click="isRegisterMode = true" class="text-xs text-emerald-700 hover:underline font-medium">Belum punya akun? Daftar di sini</button>
+      </div>
+    </form>
+
+    <!-- FORM REGISTER -->
+    <form x-show="isRegisterMode" @submit.prevent="register()" class="space-y-3 text-sm">
+      <input type="text" x-model="regNama" required placeholder="Nama Lengkap" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-emerald-600 outline-none">
+      <input type="email" x-model="regEmail" required placeholder="Email (Admin: sekretariat.sinergi.rw01@gmail.com)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-emerald-600 outline-none">
+      <input type="password" x-model="regPassword" required placeholder="Password (Min. 6 karakter)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-emerald-600 outline-none">
+      
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-slate-600">Pilih Role / Akses</label>
+        <select x-model="regRole" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:border-emerald-600">
+          <option value="rt">Ketua RT</option>
+          <option value="admin">Admin / Pengurus RW</option>
+        </select>
+      </div>
+
+      <div x-show="regRole === 'rt'">
+        <label class="block text-xs font-semibold mb-1 text-slate-600">Wilayah RT Anda</label>
+        <select x-model="regRt" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:border-emerald-600">
+          <template x-for="rt in rtList" :key="rt"><option :value="rt" x-text="rt"></option></template>
+        </select>
+      </div>
+
+      <button type="submit" class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-amber-600/20">Daftar Sekarang</button>
+      <div class="text-center pt-2">
+        <button type="button" @click="isRegisterMode = false" class="text-xs text-slate-600 hover:underline font-medium">Sudah punya akun? Login</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- HEADER -->
@@ -286,9 +318,8 @@
           <div class="sm:col-span-2"><label class="block text-xs font-semibold mb-1">1. Nama Lengkap</label><input type="text" x-model="formData.nama" required class="w-full px-3 py-2 rounded-lg border bg-white"></div>
           <div><label class="block text-xs font-semibold mb-1">2. NIK</label><input type="text" x-model="formData.nik" class="w-full px-3 py-2 rounded-lg border bg-white"></div>
           
-          <!-- TANGGAL LAHIR (OTOMATIS HITUNG USIA & VALIDASI 60 THN + 1 HARI) -->
           <div>
-            <label class="block text-xs font-semibold mb-1">3. Tanggal Lahir (Format: YYYY-MM-DD atau DD-MM-YYYY)</label>
+            <label class="block text-xs font-semibold mb-1">3. Tanggal Lahir</label>
             <input type="date" x-model="formData.tanggal_lahir" @change="calculateAgeAndValidate()" class="w-full px-3 py-2 rounded-lg border bg-white">
           </div>
           <div>
@@ -296,7 +327,6 @@
             <input type="text" x-model="formData.usia" readonly class="w-full px-3 py-2 rounded-lg border bg-slate-100 font-bold text-emerald-800" placeholder="Terhitung otomatis">
           </div>
 
-          <!-- JENIS KELAMIN & KATEGORI OTOMATIS -->
           <div>
             <label class="block text-xs font-semibold mb-1">5. Jenis Kelamin</label>
             <select x-model="formData.jenis_kelamin" @change="handleGenderChange()" class="w-full px-3 py-2 rounded-lg border bg-white">
@@ -480,7 +510,7 @@
 </div>
 
 <script>
-const SUPABASE_URL = 'https://swxwkcbmqttwaahzqciv.supabase.co';
+const SUPABASE_URhttps://swxwkcbmqttwaahzqciv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3eHdrY2JtcXR0d2FhaHpxY2l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2NDA5NzksImV4cCI6MjExMDIxNjk3OX0.dUijw_7wz0BYxI9wu8-LlbiHCxbLWf7ZsLZQqMIdMks';
 const BUCKET = 'santunan';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -504,7 +534,9 @@ function compressImage(file) {
 
 function appData() {
   return {
-    session: null, email: '', password: '', loading: false, saving: false,
+    session: null, email: '', password: '', 
+    isRegisterMode: false, regNama: '', regEmail: '', regPassword: '', regRole: 'rt', regRt: 'RT 01',
+    loading: false, saving: false,
     userProfile: { role: 'admin', rt: '', nama: '' },
     zoomLevel: 1.0,
     activeTab: 'pengajuan',
@@ -556,6 +588,30 @@ function appData() {
       const { error } = await sb.auth.signInWithPassword({ email: this.email, password: this.password });
       if (error) alert('Login gagal: ' + error.message); else this.password = '';
     },
+
+    // FITUR REGISTER DENGAN VALIDASI ADMIN
+    async register() {
+      if (this.regRole === 'admin' && this.regEmail.trim().toLowerCase() !== 'sekretariat.sinergi.rw01@gmail.com') {
+        return alert('Pendaftaran Admin gagal! Role Admin wajib menggunakan email resmi: sekretariat.sinergi.rw01@gmail.com');
+      }
+
+      const { data, error } = await sb.auth.signUp({ email: this.regEmail, password: this.regPassword });
+      if (error) return alert('Pendaftaran gagal: ' + error.message);
+
+      if (data.user) {
+        const profilePayload = {
+          id: data.user.id,
+          nama: this.regNama,
+          role: this.regRole,
+          rt: this.regRole === 'admin' ? null : this.regRt
+        };
+        const { error: profileError } = await sb.from('profiles').insert([profilePayload]);
+        if (profileError) alert('Gagal menyimpan profil: ' + profileError.message);
+        else alert('Pendaftaran berhasil! Silakan login.');
+      }
+      this.isRegisterMode = false;
+    },
+
     async logout() { await sb.auth.signOut(); },
 
     async loadData() {
@@ -604,13 +660,10 @@ function appData() {
       this.selectedIds = e.target.checked ? [...new Set([...this.selectedIds, ...ids])] : this.selectedIds.filter(id => !ids.includes(id));
     },
 
-    // OTOMATIS HITUNG USIA & VALIDASI MINIMAL 60 TAHUN + 1 HARI
     calculateAgeAndValidate() {
       if (!this.formData.tanggal_lahir) return;
       const dob = new Date(this.formData.tanggal_lahir);
       const today = new Date();
-      
-      // Target usia minimal 60 tahun + 1 hari yang lalu
       const targetDate = new Date(today.getFullYear() - 60, today.getMonth(), today.getDate() - 1);
 
       let diffTime = today - dob;
@@ -619,7 +672,6 @@ function appData() {
 
       this.formData.usia = ageYears;
 
-      // Validasi syarat minimal 60 tahun + 1 hari
       if (dob > targetDate) {
         alert("Data penerima tidak cukup syarat karena syaratnya adalah ber-KTP di wilayah RW 01 dan berumur minimal 60 tahun + 1 hari!");
         this.formData.tanggal_lahir = '';
