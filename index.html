@@ -26,13 +26,13 @@
   <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm space-y-4 border border-slate-100">
     <div class="text-center space-y-1">
       <div class="w-20 h-12 bg-emerald-100 text-emerald-700 rounded-2xl mx-auto flex items-center justify-center font-bold text-xl mb-2">RW.01</div>
-      <h2 class="text-lg font-bold text-slate-900" x-text="isRegisterMode ? 'Daftar Akun Baru' : 'Login Sistem Pengurus'"></h2>
+      <h2 class="text-lg font-bold text-slate-900" x-text="isRegisterMode ? 'Daftar Akun Pengurus / RT' : 'Login Sistem Pengurus'"></h2>
       <p class="text-xs text-slate-500">Yayasan Amsakah - RW.01</p>
     </div>
 
     <!-- FORM LOGIN -->
     <form x-show="!isRegisterMode" @submit.prevent="login()" class="space-y-3">
-      <input type="email" x-model="email" required placeholder="Email Pengurus / Ketua RT" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
+      <input type="email" x-model="email" required placeholder="Email (Admin / Ketua RT)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
       <input type="password" x-model="password" required placeholder="Password" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none">
       <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-emerald-600/20">Masuk Sistem</button>
       <div class="text-center pt-2">
@@ -40,7 +40,7 @@
       </div>
     </form>
 
-    <!-- FORM REGISTER -->
+    <!-- FORM REGISTER (DENGAN PILIHAN ROLE & VALIDASI ADMIN) -->
     <form x-show="isRegisterMode" @submit.prevent="register()" class="space-y-3 text-sm">
       <input type="text" x-model="regNama" required placeholder="Nama Lengkap" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-emerald-600 outline-none">
       <input type="email" x-model="regEmail" required placeholder="Email (Admin: sekretariat.sinergi.rw01@gmail.com)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-emerald-600 outline-none">
@@ -57,7 +57,7 @@
       <div x-show="regRole === 'rt'">
         <label class="block text-xs font-semibold mb-1 text-slate-600">Wilayah RT Anda</label>
         <select x-model="regRt" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:border-emerald-600">
-          <template x-for="rt in rtList" :key="rt"><option :value="rt" x-text="rt"></option></template>
+          <template x-for="rt in rtList.filter(r => r !== 'RW 01')" :key="rt"><option :value="rt" x-text="rt"></option></template>
         </select>
       </div>
 
@@ -264,7 +264,7 @@
         <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">FORMULIR & PROFIL WARGA</span>
         <h3 class="text-lg font-bold text-slate-900 mt-0.5" x-text="isEdit ? 'Edit Data Warga' : (formData.is_master ? 'Entri Data Master Baru' : 'Formulir Pengajuan Baru')"></h3>
       </div>
-      <button @click="showModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      <button @click="showModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
     </div>
 
     <form @submit.prevent="saveForm()" class="space-y-6 text-sm">
@@ -289,7 +289,7 @@
           <template x-for="(doc, idx) in formData.dokumen" :key="idx">
             <div class="flex items-center justify-between p-2 rounded-lg bg-white border text-xs gap-2">
               <span class="truncate font-medium text-slate-700 max-w-[150px]" x-text="doc.nama"></span>
-              <button type="button" @click="removeDoc(idx)" class="text-rose-600 font-bold">&times;</button>
+              <button type="button" @click="removeDoc(idx)" class="text-rose-600 font-bold">×</button>
             </div>
           </template>
         </div>
@@ -431,7 +431,7 @@
   <div class="relative bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl border space-y-4">
     <div class="flex items-center justify-between border-b pb-3">
       <h3 class="text-lg font-bold text-slate-800" x-text="'Unduh Rekap ' + (activeTab === 'pengajuan' ? 'Pengajuan' : 'Data Master')"></h3>
-      <button @click="showDownloadModal = false" class="text-slate-400 font-bold">&times;</button>
+      <button @click="showDownloadModal = false" class="text-slate-400 font-bold">×</button>
     </div>
     <div class="space-y-3 text-sm">
       <div>
@@ -510,7 +510,7 @@
 </div>
 
 <script>
-const SUPABASE_URhttps://swxwkcbmqttwaahzqciv.supabase.co';
+const SUPABASE_URL = 'https://swxwkcbmqttwaahzqciv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3eHdrY2JtcXR0d2FhaHpxY2l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2NDA5NzksImV4cCI6MjExMDIxNjk3OX0.dUijw_7wz0BYxI9wu8-LlbiHCxbLWf7ZsLZQqMIdMks';
 const BUCKET = 'santunan';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -589,7 +589,6 @@ function appData() {
       if (error) alert('Login gagal: ' + error.message); else this.password = '';
     },
 
-    // FITUR REGISTER DENGAN VALIDASI ADMIN
     async register() {
       if (this.regRole === 'admin' && this.regEmail.trim().toLowerCase() !== 'sekretariat.sinergi.rw01@gmail.com') {
         return alert('Pendaftaran Admin gagal! Role Admin wajib menggunakan email resmi: sekretariat.sinergi.rw01@gmail.com');
